@@ -1,0 +1,232 @@
+---
+title: "Representations of Binomials"
+author: "Zachary Houghton"
+date: "2024-04-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(reticulate)
+myenvs = conda_list()
+envname = myenvs$name[2]
+use_condaenv(envname, required = T)
+```
+
+## Loading Data
+
+```{r}
+binomial_data = read_csv('../Data/corpus_sentences.csv')
+
+
+```
+
+## Semantic Representations
+
+### Llama2 13b
+
+```{python}
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, logging
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+import numpy as np
+
+model_name_or_path = "TheBloke/Llama-2-13b-GPTQ"
+model_basename = "model"
+
+use_triton = False
+
+tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+tokenizer.pad_token = tokenizer.eos_token
+
+
+model = AutoGPTQForCausalLM.from_quantized(model_name_or_path,
+        model_basename=model_basename,
+        use_safetensors=True,
+        trust_remote_code=True,
+        device="cuda:0",
+        use_triton=use_triton,
+        quantize_config=None)
+        
+model.config.pad_token_id = model.config.eos_token_id
+```
+
+Batch vs single run
+
+```{python}
+from sklearn.metrics.pairwise import cosine_similarity
+
+word1 = 'bread'
+word2 = 'butter'
+input_texts = 'Jimmy likes bread and butter'
+
+input_ids = tokenizer(input_texts, padding = True, return_tensors = 'pt').input_ids
+input_ids = input_ids.to(device)
+
+start_index = input_ids[0].tolist().index(tokenizer.encode(word1)[1])
+end_index = input_ids[0].tolist().index(tokenizer.encode(word2)[-1])
+
+with torch.no_grad():
+  outputs = model(input_ids, output_hidden_states = True)
+  hidden_states = outputs[2]
+
+token_vecs = hidden_states[-2][0]
+
+  
+phrase_embedding = token_vecs[start_index:end_index+1, :]
+
+phrase_embedding = torch.mean(phrase_embedding, dim = 0)
+
+##If batch running:
+
+word1 = ['bread', 'radios']
+word2 = ['butter', 'televisions']
+input_texts = ['Jimmy likes bread and butter']
+
+
+# Tokenize the batch
+input_ids = tokenizer(input_texts, padding=True, return_tensors='pt').input_ids
+input_ids = input_ids.to(device)
+
+
+# Get the hidden states from the model
+with torch.no_grad():
+  outputs = model(input_ids, output_hidden_states=True)
+  hidden_states = outputs[2]
+
+second_to_last_layer = hidden_states[-2] #second to last hidden state
+
+phrase_embeddings_batch_list = []
+
+# Iterate over each input text in the batch
+for i, (input_text, w1, w2) in enumerate(zip(input_texts, word1, word2)):
+    
+    
+
+    # Find the indices of the words in the input text
+    start_index = input_ids[i].tolist().index(tokenizer.encode(w1)[1])
+    end_index = input_ids[i].tolist().index(tokenizer.encode(w2)[-1])
+    print(start_index)
+    print(end_index)
+    
+
+    # Select the batch
+    token_vecs = second_to_last_layer[i]
+
+    # Extract the phrase embedding
+    phrase_embedding_batch = token_vecs[start_index:end_index + 1, :]
+
+    # Compute the mean of the phrase embedding along the tokens dimension
+    phrase_embedding_batch = torch.mean(phrase_embedding_batch, dim=0)
+
+    # Append the phrase embedding to the list
+    phrase_embeddings_batch_list.append(phrase_embedding_batch)
+
+# Convert the list of tensors to a single tensor
+phrase_embeddings_batch_list = torch.stack(phrase_embeddings_batch_list)
+
+phrase_embeddings_batch_list.size()
+
+# Print the semantic representations for the batch
+print(phrase_embeddings_batch_list)
+
+
+###Compare batch to individual runs
+
+phrase_embeddings_batch_list = np.array(phrase_embeddings_batch_list.cpu())
+phrase_embedding = np.array(phrase_embedding.cpu())
+cosine_similarities = cosine_similarity([phrase_embeddings_batch_list[0]], [phrase_embedding])
+print(cosine_similarities)
+#0.99999 similarity, so they're doing the same thing
+```
+
+Let's make them functions:
+
+```{python}
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+input_text = 'Jimmy likes bread and butter'
+input_texts = ['Jimmy likes bread and butter']
+
+
+def get_semantic_representation(model, tokenizer, input_text, word1, word2):
+  
+    word1 = word1
+    word2 = word2
+    input_text = input_text
+    
+    input_ids = tokenizer(input_text, padding = True, return_tensors = 'pt').input_ids
+    input_ids = input_ids.to(device)
+    
+    start_index = input_ids[0].tolist().index(tokenizer.encode(word1)[1])
+    end_index = input_ids[0].tolist().index(tokenizer.encode(word2)[-1])
+    
+    with torch.no_grad():
+      outputs = model(input_ids, output_hidden_states = True)
+      hidden_states = outputs[2]
+    
+    token_vecs = hidden_states[-2][0]
+    
+      
+    phrase_embedding = token_vecs[start_index:end_index+1, :]
+    
+    phrase_embedding = torch.mean(phrase_embedding, dim = 0)
+    
+    return phrase_embedding
+    
+def get_semantic_representation_batch(model, tokenizer, input_texts, word1, word2):
+  
+    word1 = word1
+    word2 = word2
+    input_texts = input_texts
+    
+    input_ids = tokenizer(input_texts, padding = True, return_tensors = 'pt').input_ids
+    input_ids = input_ids.to(device)
+    
+    # Get the hidden states from the model
+    with torch.no_grad():
+      outputs = model(input_ids, output_hidden_states=True)
+      hidden_states = outputs[2]
+    
+    second_to_last_layer = hidden_states[-2] #second to last hidden state
+    
+    phrase_embeddings_batch_list = []
+    
+    # Iterate over each input text in the batch
+    for i, (input_text, w1, w2) in enumerate(zip(input_texts, word1, word2)):
+    
+        # Find the indices of the words in the input text
+        start_index = input_ids[i].tolist().index(tokenizer.encode(w1)[1])
+        end_index = input_ids[i].tolist().index(tokenizer.encode(w2)[-1])
+        #print(start_index)
+        #print(end_index)
+        
+    
+        # Select the batch
+        token_vecs = second_to_last_layer[i]
+    
+        # Extract the phrase embedding
+        phrase_embedding_batch = token_vecs[start_index:end_index + 1, :]
+    
+        # Compute the mean of the phrase embedding along the tokens dimension
+        phrase_embedding_batch = torch.mean(phrase_embedding_batch, dim=0)
+    
+        # Append the phrase embedding to the list
+        phrase_embeddings_batch_list.append(phrase_embedding_batch)
+    
+    # Convert the list of tensors to a single tensor
+    phrase_embeddings_batch_list = torch.stack(phrase_embeddings_batch_list)
+    
+    return phrase_embeddings_batch_list
+    
+#test1 = get_semantic_representation(model, tokenizer, input_text, 'bread', 'butter')  
+#test2 = get_semantic_representation_batch(model, tokenizer, input_texts, ['bread'], ['butter']) 
+
+#phrase_embeddings_batch_list = np.array(test2.cpu())
+#phrase_embedding = np.array(test1.cpu())
+#cosine_similarities = cosine_similarity([phrase_embeddings_batch_list[0]], [phrase_embedding])
+#print(cosine_similarities)
+#cosine similarity of 0.99999 so the functions are doing the same thing 
+```
