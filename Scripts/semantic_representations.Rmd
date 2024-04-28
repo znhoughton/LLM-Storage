@@ -145,6 +145,8 @@ print(cosine_similarities)
 Let's make them functions:
 
 ```{python}
+import pandas as pd
+
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 input_text = 'Jimmy likes bread and butter'
@@ -229,4 +231,74 @@ def get_semantic_representation_batch(model, tokenizer, input_texts, word1, word
 #cosine_similarities = cosine_similarity([phrase_embeddings_batch_list[0]], [phrase_embedding])
 #print(cosine_similarities)
 #cosine similarity of 0.99999 so the functions are doing the same thing 
+
+test = [test[0].cpu().numpy(), test[1].cpu().numpy(), test[2].cpu().numpy()]
+
+cosine_similarities = cosine_similarity(test)
+
+print(cosine_similarities)
+
+# Labels for each pair of tensors
+labels = ['bread and butter', 'bread and butter (idiomatic)', 'butter and bread']
+
+# Create a DataFrame with cosine similarities and labels
+df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
+
+# Print the labeled table
+print(df)
+```
+
+## Visualization
+
+```{python}
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from scipy.spatial import distance
+
+input_texts = ['I like to eat bread and butter', "Running a competition smoothly is his bread and butter", "Jimmy's favorite foods are butter and bread"]
+
+word1 = ['bread', 'bread', 'butter']
+word2 = ['butter', 'butter', 'bread']
+
+test = get_semantic_representation_batch(model, tokenizer, input_texts, word1, word2)
+
+
+test_np = test.cpu().numpy()
+
+
+
+
+pca = PCA(n_components=2)
+reduced_features = pca.fit_transform(test_np)
+
+#labels
+labels = ['bread and butter', 'bread and butter (idiomatic)', 'butter and bread']
+
+# Plot PCA with labels and arrows
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.scatter(reduced_features[:, 0], reduced_features[:, 1])
+for i, label in enumerate(labels):
+    plt.text(reduced_features[i, 0], reduced_features[i, 1], label, fontsize=10, ha='right')
+
+# Plot arrows connecting each pair of points with labels denoting the distance
+for i in range(len(reduced_features)):
+    for j in range(i + 1, len(reduced_features)):
+        plt.arrow(reduced_features[i, 0], reduced_features[i, 1],
+                  reduced_features[j, 0] - reduced_features[i, 0],
+                  reduced_features[j, 1] - reduced_features[i, 1],
+                  color='gray', alpha=0.5, head_width=0.05, width=0.005)
+
+        # Calculate the Euclidean distance between the points
+        dist = distance.euclidean(reduced_features[i], reduced_features[j])
+        # Annotate the arrow with the distance
+        plt.text((reduced_features[i, 0] + reduced_features[j, 0]) / 2,
+                 (reduced_features[i, 1] + reduced_features[j, 1]) / 2,
+                 f'{dist:.2f}', fontsize=8, ha='center', va='center')
+
+plt.xlabel('Principal Component 1')
+plt.ylabel('Principal Component 2')
+plt.title('2D Visualization of All Features')
+
+plt.show()
 ```
