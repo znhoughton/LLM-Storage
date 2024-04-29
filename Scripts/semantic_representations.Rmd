@@ -246,6 +246,109 @@ df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
 
 # Print the labeled table
 print(df)
+
+
+def get_semantic_embedding_single_word(model, tokenizer, word):
+    
+    input_ids = tokenizer(word, padding = True, return_tensors = 'pt').input_ids
+    input_ids = input_ids.to(device)
+    
+    # Get the hidden states from the model
+    with torch.no_grad():
+      outputs = model(input_ids, output_hidden_states=True)
+      hidden_states = outputs[2]
+    
+    second_to_last_layer = hidden_states[-2] #second to last hidden state
+    
+    word_embeddings_batch_list = []
+    
+    # Iterate over each input text in the batch
+    for i, word in enumerate(word):
+      
+        start_index = input_ids[i].tolist().index(tokenizer.encode(word)[1])
+        end_index = input_ids[i].tolist().index(tokenizer.encode(word)[-1])
+    
+        token_vecs = second_to_last_layer[i]
+        
+        word_embedding_batch = token_vecs[start_index:end_index + 1, :]
+    
+        # Compute the mean of the phrase embedding along the tokens dimension
+        word_embedding_batch = torch.mean(word_embedding_batch, dim=0)
+    
+    
+        # Append the phrase embedding to the list
+        word_embeddings_batch_list.append(word_embedding_batch)
+    
+    # Convert the list of tensors to a single tensor
+    word_embeddings_batch_list = torch.stack(word_embeddings_batch_list)
+    
+    return word_embeddings_batch_list
+  
+  
+def get_semantic_embedding_single_word_in_context(model, tokenizer, context, word):
+    
+    word = word
+    input_text = context
+    
+    input_ids = tokenizer(input_text, padding = True, return_tensors = 'pt').input_ids
+    input_ids = input_ids.to(device)
+    
+    # Get the hidden states from the model
+    with torch.no_grad():
+      outputs = model(input_ids, output_hidden_states=True)
+      hidden_states = outputs[2]
+    
+    second_to_last_layer = hidden_states[-2] #second to last hidden state
+    
+    phrase_embeddings_batch_list = []
+    
+    # Iterate over each input text in the batch
+    for i, (input_text, word) in enumerate(zip(input_text, word)):
+    
+        # Find the indices of the words in the input text
+        start_index = input_ids[i].tolist().index(tokenizer.encode(word)[1])
+        end_index = input_ids[i].tolist().index(tokenizer.encode(word)[-1])
+        #print(start_index)
+        #print(end_index)
+        
+    
+        # Select the batch
+        token_vecs = second_to_last_layer[i]
+    
+        # Extract the phrase embedding
+        phrase_embedding_batch = token_vecs[start_index:end_index + 1, :]
+    
+        # Compute the mean of the phrase embedding along the tokens dimension
+        phrase_embedding_batch = torch.mean(phrase_embedding_batch, dim=0)
+    
+        # Append the phrase embedding to the list
+        phrase_embeddings_batch_list.append(phrase_embedding_batch)
+    
+    # Convert the list of tensors to a single tensor
+    phrase_embeddings_batch_list = torch.stack(phrase_embeddings_batch_list)
+    
+    return phrase_embeddings_batch_list
+  
+sentences = ['bank robber', 'river bank', 'vault', 'shore', 'bank']
+
+words = ['bank', 'bank', 'vault', 'shore', 'bank']
+
+test1 = get_semantic_embedding_single_word(model, tokenizer, ['bank'])
+test2 = get_semantic_embedding_single_word_in_context(model, tokenizer, sentences, words)
+
+
+test = [test2[0].cpu().numpy(), test2[1].cpu().numpy(), test2[2].cpu().numpy(), test2[3].cpu().numpy(), test2[4].cpu().numpy(), test1[0].cpu().numpy()]
+
+cosine_similarities = cosine_similarity(test)
+
+print(cosine_similarities)
+
+labels = ['bank (robber)', 'bank (river)', 'vault', 'shore', 'bank (without context)', 'bank (without context single word function)']
+
+# Create a DataFrame with cosine similarities and labels
+df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
+
+print(df)
 ```
 
 ## Visualization
