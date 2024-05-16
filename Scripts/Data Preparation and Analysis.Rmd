@@ -1,0 +1,220 @@
+---
+title: "data_preparation"
+author: "Zachary Houghton"
+date: "2024-05-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(brms)
+library(interactions)
+```
+
+## Data Preparation
+
+```{r}
+data = read_csv('../Data/sentences.csv') %>%
+  mutate(alpha_binom = paste(WordA, 'and', WordB))
+
+corpus_sentences = read_csv('../Data/corpus_sentences.csv') %>%
+  mutate(alpha_binom = paste(WordA, 'and', WordB)) %>%
+  mutate(already_in_data = ifelse(alpha_binom %in% data$alpha_binom, 1, 0)) %>%
+  select(WordA, WordB, OverallFreq, RelFreq, 'Sentence (WordA and WordB)', 'Sentence (WordB and WordA)', alpha_binom, already_in_data) %>%
+  na.omit(Sentence)
+
+corpus_sentences_no_duplicates = corpus_sentences %>%
+  filter(already_in_data == 0)
+
+corpus_sentences_no_duplicates = corpus_sentences_no_duplicates %>%
+  select(-already_in_data)
+
+data = data %>%
+  full_join(corpus_sentences_no_duplicates) %>%
+  select(-alpha_binom)
+```
+
+corpus_sentences = read_csv('../Data/corpus_sentences.csv')
+
+```{r}
+#index the first word in the binomial, since the binomials are always three words, we can assume that the second and third words are the index+1 and index+2 respectively. 
+data = data %>%
+  rowwise() %>%
+  mutate(first_word_index = which(unlist(str_split(`Sentence (WordA and WordB)`, ' ')) == WordA)) %>%
+  filter(!is.na(OverallFreq)) %>%
+  mutate(RelFreq = ifelse(is.na(RelFreq), 0, RelFreq)) %>%
+  ungroup() %>%
+  mutate(Item = row_number())
+
+
+```
+
+```{r}
+alpha_sentences = data %>%
+  select(-`Sentence (WordB and WordA)`) %>%
+  mutate(alpha_order = 1)  %>%
+  mutate(BinomFreq = OverallFreq * RelFreq) %>%
+  mutate(Binomial = paste(WordA, 'and', WordB)) %>%
+  rename('Sentence' = 'Sentence (WordA and WordB)') %>%
+  mutate(Word1 = WordA, Word2 = WordB) 
+
+
+nonalpha_sentences = data %>%
+  select(-`Sentence (WordA and WordB)`) %>%
+  mutate(alpha_order = 0) %>%
+  mutate(BinomFreq = OverallFreq * (1-RelFreq)) %>%
+  mutate(Binomial = paste(WordB, 'and', WordA)) %>%
+  rename('Sentence' = 'Sentence (WordB and WordA)')  %>%
+  mutate(Word1 = WordB, Word2 = WordA) 
+
+
+all_sentences = alpha_sentences %>%
+  full_join(nonalpha_sentences)
+
+file_path = '../Data/all_sentences.csv'
+#corpus = corpus[1:2,] # for debugging
+
+
+if (!file.exists(file_path)) {
+  
+write_csv(all_sentences, file_path)
+
+}
+
+```
+
+## Analysis
+
+First analysis is to test whether an increase in BinomFreq results in a greater difference between the representation of the phrase and the representation of the individual pieces. The interaction term with RelFreq is included because it seems plausible that relative frequency may also play an important role. For example if the binomial X and Y has a frequency of 3000, but the binomial Y and X also has a frequency of 3000, then these may not have separate representations. But if X and Y has a frequency of 3000, but Y and X only has a frequency of 10, then these may have drastically different representations. In other words, an increase in Binomial frequency may only result in a larger cosine difference if the relative frequency is also higher.
+
+Item here may also be a bit misleading, Item here refers to a given sentence context, which is the same for a given binomial regardless of order. Thus the sentence context for intents and purposes is the same as the sentence context for purposes and intents. The Item intercept is included because there may be certain sentence contexts that result in a higher or lower cosine difference.
+
+$$
+CosineDiff \sim BinomFreq + (1|Item) 
+$$
+
+```{r}
+cosine_data = read_csv('../Data/cosine_diffs.csv') %>%
+  left_join(all_sentences, by = c('binom' = 'Binomial'))
+
+cosine_data = cosine_data %>%
+  mutate(Item = factor(Item)) %>%
+  mutate(LogBinomFreq = log(BinomFreq+1)) %>%
+  mutate(RelFreq = RelFreq - 0.5) %>% #centering RelFreq
+  filter(!Item %in% c(125, 176)) %>% #these two items were giving llama13 some trouble
+  rename('cosine_dist' = cosine_diffs)
+
+cosine_data_m2 = cosine_data %>%
+  filter(LogBinomFreq > -10) #These items might be driving the effect, let's make sure this isn't the case
+#test_na = cosine_data[is.na(cosine_data$cosine_diffs),]
+```
+
+Model:
+
+```{r}
+options(contrasts = c("contr.sum","contr.sum"))
+
+m1 = brm(cosine_dist ~ LogBinomFreq + (1|Item),
+         data = cosine_data,
+         family = gaussian(),
+         warmup = 10000,
+         iter = 20000,
+         cores = 4,
+         chains = 4,
+         control = list(max_treedepth = 15, adapt_delta = 0.95),
+         file = '../Data/model1')
+
+fixef(m1)
+
+m2 = brm(cosine_dist ~ LogBinomFreq + (1|Item),
+         data = cosine_data_m2,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         file = '../Data/model2')
+
+fixef(m2)
+
+conditional_effects(m1)
+conditional_effects(m2)
+```
+
+Now let's look at the relationship between the alphabetical vs nonalphabetical cosine distance. To do this, we'll get a new variable which is the cosine distance of the alphabetical minus the cosine distance of the nonalphabetical. In other words, this variable will represent how much more similar the alphabetical item is to its parts than the nonalphabetical. A greater value will mean that the alphabetical form is more similar to its pieces than nonalphabetical, a more negative value will mean that the nonalphabetical form is more similar to its pieces.
+
+```{r}
+cosine_data = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(cosine_diff = cosine_dist - first(cosine_dist)) %>%
+  group_by(Item) %>%
+  top_n(1, abs(cosine_diff)) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1))
+```
+
+One prediction is that for items with a large overall frequency, the effect of relative frequency on this difference will be larger. Now we can actually use RelFreq because it's meaningful: a more positive RelFreq means more preferred in the Alphabetical form. A larger cosine_diff means the alpha form is more similar to its parts. Thus a prediction is that for items with a high overall frequency, a larger relative frequency may result in a smaller cosine_diff (i.e., a more obscure relationship between the meaning of the phrase and its pieces). For items with a high overall frequency, a more negative relative frequency might result in a smaller cosine diff.
+
+On the other hand, for items with a small overall frequency, the effect of relative frequency on cosine diff may be negligible.
+
+```{r}
+options(contrasts = c("contr.sum","contr.sum"))
+
+m3 = brm(cosine_diff ~ LogOverallFreq * RelFreq,
+         data = cosine_data,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model3')
+
+fixef(m3)
+
+conditional_effects(m3)
+
+
+
+post_samples_m3 = as.data.frame(fixef(m3, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m3$LogOverallFreq < 0) / length(post_samples_m3$LogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m3$RelFreq > 0) / length(post_samples_m3$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m3$`LogOverallFreq:RelFreq` < 0) / length(post_samples_m3$`LogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m3, pred = 'LogOverallFreq', modx = 'RelFreq', plot.points = T)
+```
+
+## Plots
+
+```{r}
+ggplot(data = cosine_data, aes(x = LogBinomFreq, y = cosine_dist, color = RelFreq)) +
+  geom_point() + 
+  geom_smooth(method='lm') +
+  theme_bw()
+
+ggplot(data = cosine_data_m2, aes(x = LogBinomFreq, y = cosine_dist, color = RelFreq)) +
+  geom_point() + 
+  geom_smooth(method='lm') +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = cosine_data, aes(x = log(OverallFreq), y = cosine_diff, color = RelFreq)) +
+  geom_point() + 
+  geom_smooth(method='lm') +
+  theme_bw()
+
+ggplot(data = cosine_data, aes(x = RelFreq, y = cosine_diff, color = log(OverallFreq))) +
+  geom_point() + 
+  geom_smooth(method='lm') +
+  theme_bw()
+
+```
