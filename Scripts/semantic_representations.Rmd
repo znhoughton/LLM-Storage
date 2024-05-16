@@ -17,9 +17,11 @@ use_condaenv(envname, required = T)
 ## Loading Data
 
 ```{r}
-binomial_data = read_csv('../Data/corpus_sentences.csv')
+binomial_data = read_csv('../Data/all_sentences.csv')
 
-
+sentences = binomial_data$Sentence
+word1 = binomial_data$Word1
+word2 = binomial_data$Word2
 ```
 
 ## Semantic Representations
@@ -55,90 +57,90 @@ model.config.pad_token_id = model.config.eos_token_id
 
 Batch vs single run
 
-```{python}
-from sklearn.metrics.pairwise import cosine_similarity
-
-word1 = 'bread'
-word2 = 'butter'
-input_texts = 'Jimmy likes bread and butter'
-
-input_ids = tokenizer(input_texts, padding = True, return_tensors = 'pt').input_ids
-input_ids = input_ids.to(device)
-
-start_index = input_ids[0].tolist().index(tokenizer.encode(word1)[1])
-end_index = input_ids[0].tolist().index(tokenizer.encode(word2)[-1])
-
-with torch.no_grad():
-  outputs = model(input_ids, output_hidden_states = True)
-  hidden_states = outputs[2]
-
-token_vecs = hidden_states[-2][0]
-
-  
-phrase_embedding = token_vecs[start_index:end_index+1, :]
-
-phrase_embedding = torch.mean(phrase_embedding, dim = 0)
-
-##If batch running:
-
-word1 = ['bread', 'radios']
-word2 = ['butter', 'televisions']
-input_texts = ['Jimmy likes bread and butter']
-
-
-# Tokenize the batch
-input_ids = tokenizer(input_texts, padding=True, return_tensors='pt').input_ids
-input_ids = input_ids.to(device)
-
-
-# Get the hidden states from the model
-with torch.no_grad():
-  outputs = model(input_ids, output_hidden_states=True)
-  hidden_states = outputs[2]
-
-second_to_last_layer = hidden_states[-2] #second to last hidden state
-
-phrase_embeddings_batch_list = []
-
-# Iterate over each input text in the batch
-for i, (input_text, w1, w2) in enumerate(zip(input_texts, word1, word2)):
-    
-    
-
-    # Find the indices of the words in the input text
-    start_index = input_ids[i].tolist().index(tokenizer.encode(w1)[1])
-    end_index = input_ids[i].tolist().index(tokenizer.encode(w2)[-1])
-    print(start_index)
-    print(end_index)
-    
-
-    # Select the batch
-    token_vecs = second_to_last_layer[i]
-
-    # Extract the phrase embedding
-    phrase_embedding_batch = token_vecs[start_index:end_index + 1, :]
-
-    # Compute the mean of the phrase embedding along the tokens dimension
-    phrase_embedding_batch = torch.mean(phrase_embedding_batch, dim=0)
-
-    # Append the phrase embedding to the list
-    phrase_embeddings_batch_list.append(phrase_embedding_batch)
-
-# Convert the list of tensors to a single tensor
-phrase_embeddings_batch_list = torch.stack(phrase_embeddings_batch_list)
-
-phrase_embeddings_batch_list.size()
-
-# Print the semantic representations for the batch
-print(phrase_embeddings_batch_list)
-
-
-###Compare batch to individual runs
-
-phrase_embeddings_batch_list = np.array(phrase_embeddings_batch_list.cpu())
-phrase_embedding = np.array(phrase_embedding.cpu())
-cosine_similarities = cosine_similarity([phrase_embeddings_batch_list[0]], [phrase_embedding])
-print(cosine_similarities)
+```{python eval = F}
+# from sklearn.metrics.pairwise import cosine_similarity
+# 
+# word1 = 'bread'
+# word2 = 'butter'
+# input_texts = 'Jimmy likes bread and butter'
+# 
+# input_ids = tokenizer(input_texts, padding = True, return_tensors = 'pt').input_ids
+# input_ids = input_ids.to(device)
+# 
+# start_index = input_ids[0].tolist().index(tokenizer.encode(word1)[1])
+# end_index = input_ids[0].tolist().index(tokenizer.encode(word2)[-1])
+# 
+# with torch.no_grad():
+#   outputs = model(input_ids, output_hidden_states = True)
+#   hidden_states = outputs[2]
+# 
+# token_vecs = hidden_states[-2][0]
+# 
+#   
+# phrase_embedding = token_vecs[start_index:end_index+1, :]
+# 
+# phrase_embedding = torch.mean(phrase_embedding, dim = 0)
+# 
+# ##If batch running:
+# 
+# word1 = ['bread', 'radios']
+# word2 = ['butter', 'televisions']
+# input_texts = ['Jimmy likes bread and butter']
+# 
+# 
+# # Tokenize the batch
+# input_ids = tokenizer(input_texts, padding=True, return_tensors='pt').input_ids
+# input_ids = input_ids.to(device)
+# 
+# 
+# # Get the hidden states from the model
+# with torch.no_grad():
+#   outputs = model(input_ids, output_hidden_states=True)
+#   hidden_states = outputs[2]
+# 
+# second_to_last_layer = hidden_states[-2] #second to last hidden state
+# 
+# phrase_embeddings_batch_list = []
+# 
+# # Iterate over each input text in the batch
+# for i, (input_text, w1, w2) in enumerate(zip(input_texts, word1, word2)):
+#     
+#     
+# 
+#     # Find the indices of the words in the input text
+#     start_index = input_ids[i].tolist().index(tokenizer.encode(w1)[1])
+#     end_index = input_ids[i].tolist().index(tokenizer.encode(w2)[-1])
+#     print(start_index)
+#     print(end_index)
+#     
+# 
+#     # Select the batch
+#     token_vecs = second_to_last_layer[i]
+# 
+#     # Extract the phrase embedding
+#     phrase_embedding_batch = token_vecs[start_index:end_index + 1, :]
+# 
+#     # Compute the mean of the phrase embedding along the tokens dimension
+#     phrase_embedding_batch = torch.mean(phrase_embedding_batch, dim=0)
+# 
+#     # Append the phrase embedding to the list
+#     phrase_embeddings_batch_list.append(phrase_embedding_batch)
+# 
+# # Convert the list of tensors to a single tensor
+# phrase_embeddings_batch_list = torch.stack(phrase_embeddings_batch_list)
+# 
+# phrase_embeddings_batch_list.size()
+# 
+# # Print the semantic representations for the batch
+# print(phrase_embeddings_batch_list)
+# 
+# 
+# ###Compare batch to individual runs
+# 
+# phrase_embeddings_batch_list = np.array(phrase_embeddings_batch_list.cpu())
+# phrase_embedding = np.array(phrase_embedding.cpu())
+# cosine_similarities = cosine_similarity([phrase_embeddings_batch_list[0]], [phrase_embedding])
+# print(cosine_similarities)
 #0.99999 similarity, so they're doing the same thing
 ```
 
@@ -146,37 +148,38 @@ Let's make them functions:
 
 ```{python}
 import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-input_text = 'Jimmy likes bread and butter'
-input_texts = ['Jimmy likes bread and butter']
-
-
-def get_semantic_representation(model, tokenizer, input_text, word1, word2):
-  
-    word1 = word1
-    word2 = word2
-    input_text = input_text
-    
-    input_ids = tokenizer(input_text, padding = True, return_tensors = 'pt').input_ids
-    input_ids = input_ids.to(device)
-    
-    start_index = input_ids[0].tolist().index(tokenizer.encode(word1)[1])
-    end_index = input_ids[0].tolist().index(tokenizer.encode(word2)[-1])
-    
-    with torch.no_grad():
-      outputs = model(input_ids, output_hidden_states = True)
-      hidden_states = outputs[2]
-    
-    token_vecs = hidden_states[-2][0]
-    
-      
-    phrase_embedding = token_vecs[start_index:end_index+1, :]
-    
-    phrase_embedding = torch.mean(phrase_embedding, dim = 0)
-    
-    return phrase_embedding
+# input_text = 'Jimmy likes bread and butter'
+# input_texts = ['Jimmy likes bread and butter']
+# 
+# 
+# def get_semantic_representation(model, tokenizer, input_text, word1, word2):
+#   
+#     word1 = word1
+#     word2 = word2
+#     input_text = input_text
+#     
+#     input_ids = tokenizer(input_text, padding = True, return_tensors = 'pt').input_ids
+#     input_ids = input_ids.to(device)
+#     
+#     start_index = input_ids[0].tolist().index(tokenizer.encode(word1)[1])
+#     end_index = input_ids[0].tolist().index(tokenizer.encode(word2)[-1])
+#     
+#     with torch.no_grad():
+#       outputs = model(input_ids, output_hidden_states = True)
+#       hidden_states = outputs[2]
+#     
+#     token_vecs = hidden_states[-2][0]
+#     
+#       
+#     phrase_embedding = token_vecs[start_index:end_index+1, :]
+#     
+#     phrase_embedding = torch.mean(phrase_embedding, dim = 0)
+#     
+#     return phrase_embedding
     
 def get_semantic_representation_batch(model, tokenizer, input_texts, word1, word2):
   
@@ -232,20 +235,20 @@ def get_semantic_representation_batch(model, tokenizer, input_texts, word1, word
 #print(cosine_similarities)
 #cosine similarity of 0.99999 so the functions are doing the same thing 
 
-test = [test[0].cpu().numpy(), test[1].cpu().numpy(), test[2].cpu().numpy()]
+#test = [test[0].cpu().numpy(), test[1].cpu().numpy(), test[2].cpu().numpy()]
 
-cosine_similarities = cosine_similarity(test)
+#cosine_similarities = cosine_similarity(test)
 
-print(cosine_similarities)
+#print(cosine_similarities)
 
 # Labels for each pair of tensors
-labels = ['bread and butter', 'bread and butter (idiomatic)', 'butter and bread']
+#labels = ['bread and butter', 'bread and butter (idiomatic)', 'butter and bread']
 
 # Create a DataFrame with cosine similarities and labels
-df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
+#df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
 
 # Print the labeled table
-print(df)
+#print(df)
 
 
 def get_semantic_embedding_single_word(model, tokenizer, word):
@@ -329,26 +332,223 @@ def get_semantic_embedding_single_word_in_context(model, tokenizer, context, wor
     
     return phrase_embeddings_batch_list
   
-sentences = ['bank robber', 'river bank', 'vault', 'shore', 'bank']
+# sentences = ['bank robber', 'river bank', 'vault', 'shore', 'bank']
+# 
+# words = ['bank', 'bank', 'vault', 'shore', 'bank']
+# 
+# test1 = get_semantic_embedding_single_word(model, tokenizer, ['bank'])
+# test2 = get_semantic_embedding_single_word_in_context(model, tokenizer, sentences, words)
+# 
+# 
+# test = [test2[0].cpu().numpy(), test2[1].cpu().numpy(), test2[2].cpu().numpy(), test2[3].cpu().numpy(), test2[4].cpu().numpy(), test1[0].cpu().numpy()]
+# 
+# cosine_similarities = cosine_similarity(test)
+# 
+# print(cosine_similarities)
+# 
+# labels = ['bank (robber)', 'bank (river)', 'vault', 'shore', 'bank (without context)', 'bank (without context single word function)']
+# 
+# # Create a DataFrame with cosine similarities and labels
+# df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
+# 
+# print(df)
+```
 
-words = ['bank', 'bank', 'vault', 'shore', 'bank']
+## Collecting Data
 
-test1 = get_semantic_embedding_single_word(model, tokenizer, ['bank'])
-test2 = get_semantic_embedding_single_word_in_context(model, tokenizer, sentences, words)
+Now we'll put everything together. We need a function that gets the semantic embeddings of the binomial, then gets the cosine distance to the individual word embeddings.
+
+```{python}
+
+sentence = r.sentences
+word1 = r.word1
+word2 = r.word2
+
+n_batches = len(sentence) / 1
+
+input_texts_sentences = np.array_split(sentence, n_batches)
+input_texts_sentences = [x.tolist() for x in [*input_texts_sentences]]
+
+input_texts_word1 = np.array_split(word1, n_batches)
+input_texts_word1 = [x.tolist() for x in [*input_texts_word1]]
+
+input_texts_word2 = np.array_split(word2, n_batches)
+input_texts_word2 = [x.tolist() for x in [*input_texts_word2]]
 
 
-test = [test2[0].cpu().numpy(), test2[1].cpu().numpy(), test2[2].cpu().numpy(), test2[3].cpu().numpy(), test2[4].cpu().numpy(), test1[0].cpu().numpy()]
+sentence_binom_order = [[]]
+batch_sentences = [[]]
+timer = 0
 
-cosine_similarities = cosine_similarity(test)
+for minibatch, word1, word2 in zip(input_texts_sentences, input_texts_word1, input_texts_word2):
+  timer += 1
+  if timer % 100 = 0:
+    print(timer)
+  binom = [word1[i] + ' and ' + word2[i] for i in range(len(word1))]
+  batch_run = get_semantic_representation_batch(model, tokenizer, minibatch, word1, word2)
+  
+  batch_sentences.extend(batch_run)
+  sentence_binom_order.extend(binom)
+  
 
-print(cosine_similarities)
+batch_sentences = batch_sentences[1:]
+sentence_representations = torch.stack(batch_sentences)
+sentence_binom_order = sentence_binom_order[1:]
 
-labels = ['bank (robber)', 'bank (river)', 'vault', 'shore', 'bank (without context)', 'bank (without context single word function)']
+sentence_representations
 
-# Create a DataFrame with cosine similarities and labels
-df = pd.DataFrame(cosine_similarities, index=labels, columns=labels)
+binom_order = [[]]
+binomial_representations = [[]]
+timer = 0
+for word1, word2 in zip(input_texts_word1, input_texts_word2):
+  minibatch = [word1[i] + ' and ' + word2[i] for i in range(len(word1))]
+  timer += 1
+  if timer % 100 == 0:
+    print(timer)
+  batch_run_binoms = get_semantic_representation_batch(model, tokenizer, minibatch, word1, word2)
+  
+  binomial_representations.extend(batch_run_binoms)
+  binom_order.extend(minibatch)
 
-print(df)
+
+
+
+binomial_representations = binomial_representations[1:]
+binomial_representations = torch.stack(binomial_representations)
+binom_order = binom_order[1:]
+
+binom_order == sentence_binom_order
+#binom_order
+#sanity check
+# random_word_representations = [[]]
+# 
+# input_texts_word1 = [['abandon'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the'], ['the']]
+# input_texts_word2 = [['fervor'], ['the'], ['the'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor'], ['fervor']]
+# for word1, word2 in zip(input_texts_word1, input_texts_word2):
+#   minibatch = [word1[i] + ' the ' + word2[i] for i in range(len(word1))]
+#   timer += 1
+#   print(timer)
+#   random_run_binoms = get_semantic_representation_batch(model, tokenizer, minibatch, word1, word2)
+#   
+#   random_word_representations.extend(random_run_binoms)
+# 
+# random_word_representations = random_word_representations[1:]
+# random_word_representations = torch.stack(random_word_representations)
+#print(sentence_binom_order)
+#print(binom_order)
+```
+
+Pairwise Cosine similarity:
+
+```{python}
+import pandas as pd
+
+cosi = torch.nn.CosineSimilarity(dim=0)
+cosine_diffs = [[]]
+
+for rep1, rep2 in zip(sentence_representations, binomial_representations):
+  
+  if 
+  
+  cosine_similarities = cosi(rep1, rep2)
+  #print(cosine_similarities)
+  cosine_similarities = cosine_similarities.item()
+  
+  cosine_diffs.append(cosine_similarities)
+  
+cosine_diffs = cosine_diffs[1:]
+
+cosine_diffs_df = pd.DataFrame({'cosine_diffs': cosine_diffs})
+
+cosine_diffs_df['binom'] = binom_order
+#cosine_diffs_baseline
+# cosine_diffs_baseline = [[]]
+# 
+# for sen_rep, random_rep in zip(sentence_representations, random_word_representations):
+# 
+# 
+# 
+#   cosine_similarities = cosi(sen_rep, random_rep)
+#   #print(cosine_similarities)
+# 
+#   cosine_diffs_baseline.append(cosine_similarities.item())
+# 
+# cosine_diffs_baseline = cosine_diffs_baseline[1:]
+# 
+# 
+# cosine_diffs
+# cosine_diffs_baseline
+  
+```
+
+A few representations gave NAs, so we'll re-run them to see what the issue is:
+
+```{python}
+
+sentence = ["The house welcomes the city's derelicts and outcasts to eat and converse.", "The house welcomes the city's outcasts and derelicts to eat and converse.", "She is now freed from pettiness and greed by leading a simple life in the countryside."]
+word1 = ["derelicts", "outcasts", "pettiness"]
+word2 = ["outcasts", "derelicts", "greed"]
+
+n_batches = len(sentence) / 1
+
+input_texts_sentences = np.array_split(sentence, n_batches)
+input_texts_sentences = [x.tolist() for x in [*input_texts_sentences]]
+
+input_texts_word1 = np.array_split(word1, n_batches)
+input_texts_word1 = [x.tolist() for x in [*input_texts_word1]]
+
+input_texts_word2 = np.array_split(word2, n_batches)
+input_texts_word2 = [x.tolist() for x in [*input_texts_word2]]
+
+
+#sentence_binom_order = [[]]
+batch_sentences = [[]]
+timer = 0
+
+for minibatch, word1, word2 in zip(input_texts_sentences, input_texts_word1, input_texts_word2):
+  timer += 1
+  if timer % 100 == 0:
+    print(timer)
+  binom = [word1[i] + ' and ' + word2[i] for i in range(len(word1))]
+  batch_run = get_semantic_representation_batch(model, tokenizer, minibatch, word1, word2)
+  
+  batch_sentences.extend(batch_run)
+  #sentence_binom_order.extend(binom)
+  
+
+batch_sentences = batch_sentences[1:]
+sentence_representations = torch.stack(batch_sentences)
+#sentence_binom_order = sentence_binom_order[1:]
+
+sentence_representations
+
+#binom_order = [[]]
+binomial_representations = [[]]
+timer = 0
+for word1, word2 in zip(input_texts_word1, input_texts_word2):
+  minibatch = [word1[i] + ' and ' + word2[i] for i in range(len(word1))]
+  timer += 1
+  if timer % 100 == 0:
+    print(timer)
+  batch_run_binoms = get_semantic_representation_batch(model, tokenizer, minibatch, word1, word2)
+  
+  binomial_representations.extend(batch_run_binoms)
+  #binom_order.extend(minibatch)
+
+
+
+
+binomial_representations = binomial_representations[1:]
+binomial_representations = torch.stack(binomial_representations)
+#binom_order = binom_order[1:]
+
+#binom_order == sentence_binom_order
+```
+
+```{r}
+cosine_diffs = py$cosine_diffs_df
+
+write_csv(cosine_diffs, '../Data/cosine_diffs.csv')
 ```
 
 ## Visualization
