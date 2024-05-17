@@ -145,7 +145,7 @@ conditional_effects(m2)
 Now let's look at the relationship between the alphabetical vs nonalphabetical cosine distance. To do this, we'll get a new variable which is the cosine distance of the alphabetical minus the cosine distance of the nonalphabetical. In other words, this variable will represent how much more similar the alphabetical item is to its parts than the nonalphabetical. A greater value will mean that the alphabetical form is more similar to its pieces than nonalphabetical, a more negative value will mean that the nonalphabetical form is more similar to its pieces.
 
 ```{r}
-cosine_data = cosine_data %>%
+cosine_data_m3 = cosine_data %>%
   group_by(Item) %>%
   arrange(desc(binom), .by_group = T) %>%
   mutate(cosine_diff = cosine_dist - first(cosine_dist)) %>%
@@ -162,7 +162,7 @@ On the other hand, for items with a small overall frequency, the effect of relat
 options(contrasts = c("contr.sum","contr.sum"))
 
 m3 = brm(cosine_diff ~ LogOverallFreq * RelFreq,
-         data = cosine_data,
+         data = cosine_data_m3,
          family = gaussian(),
          warmup = 2000,
          iter = 4000,
@@ -192,6 +192,51 @@ print(post_samples_overallfreq_relfreq) #not significant but damn close
 interact_plot(m3, pred = 'LogOverallFreq', modx = 'RelFreq', plot.points = T)
 ```
 
+What if instead of the difference, we get a log odds ratio?
+
+```{r}
+cosine_data_m4 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(log_odds_cosine = log(cosine_dist/first(cosine_dist))) %>% #larger value means more preferred in alphabetical, smaller means more preferred in nonalphabetical
+  group_by(Item) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  top_n(1, abs(log_odds_cosine)) 
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+m4 = brm(log_odds_cosine ~ LogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4')
+
+fixef(m4)
+
+conditional_effects(m4)
+
+
+
+post_samples_m4 = as.data.frame(fixef(m4, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m4$LogOverallFreq < 0) / length(post_samples_m4$LogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m4$RelFreq > 0) / length(post_samples_m4$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m4$`LogOverallFreq:RelFreq` < 0) / length(post_samples_m4$`LogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m4, pred = 'LogOverallFreq', modx = 'RelFreq', plot.points = T)
+interact_plot(m4, pred = 'LogOverallFreq', modx = 'RelFreq')
+```
+
 ## Plots
 
 ```{r}
@@ -207,12 +252,12 @@ ggplot(data = cosine_data_m2, aes(x = LogBinomFreq, y = cosine_dist, color = Rel
 ```
 
 ```{r}
-ggplot(data = cosine_data, aes(x = log(OverallFreq), y = cosine_diff, color = RelFreq)) +
+ggplot(data = cosine_data, aes(x = log(OverallFreq), y = cosine_dist, color = RelFreq)) +
   geom_point() + 
   geom_smooth(method='lm') +
   theme_bw()
 
-ggplot(data = cosine_data, aes(x = RelFreq, y = cosine_diff, color = log(OverallFreq))) +
+ggplot(data = cosine_data, aes(x = RelFreq, y = cosine_dist, color = log(OverallFreq))) +
   geom_point() + 
   geom_smooth(method='lm') +
   theme_bw()
