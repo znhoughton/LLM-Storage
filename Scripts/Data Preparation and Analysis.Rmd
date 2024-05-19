@@ -35,8 +35,6 @@ data = data %>%
   select(-alpha_binom)
 ```
 
-corpus_sentences = read_csv('../Data/corpus_sentences.csv')
-
 ```{r}
 #index the first word in the binomial, since the binomials are always three words, we can assume that the second and third words are the index+1 and index+2 respectively. 
 data = data %>%
@@ -91,7 +89,7 @@ First analysis is to test whether an increase in BinomFreq results in a greater 
 Item here may also be a bit misleading, Item here refers to a given sentence context, which is the same for a given binomial regardless of order. Thus the sentence context for intents and purposes is the same as the sentence context for purposes and intents. The Item intercept is included because there may be certain sentence contexts that result in a higher or lower cosine difference.
 
 $$
-CosineDiff \sim BinomFreq + (1|Item) 
+CosineSim \sim BinomFreq + (1|Item) 
 $$
 
 ```{r}
@@ -103,10 +101,10 @@ cosine_data = cosine_data %>%
   mutate(LogBinomFreq = log(BinomFreq+1)) %>%
   mutate(RelFreq = RelFreq - 0.5) %>% #centering RelFreq
   filter(!Item %in% c(125, 176)) %>% #these two items were giving llama13 some trouble
-  rename('cosine_dist' = cosine_diffs)
+  rename('cosine_sim' = cosine_diffs)
 
 cosine_data_m2 = cosine_data %>%
-  filter(LogBinomFreq > -10) #These items might be driving the effect, let's make sure this isn't the case
+  filter(LogBinomFreq > 0) #These items might be driving the effect, let's make sure this isn't the case
 #test_na = cosine_data[is.na(cosine_data$cosine_diffs),]
 ```
 
@@ -115,7 +113,7 @@ Model:
 ```{r}
 options(contrasts = c("contr.sum","contr.sum"))
 
-m1 = brm(cosine_dist ~ LogBinomFreq + (1|Item),
+m1 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
          data = cosine_data,
          family = gaussian(),
          warmup = 10000,
@@ -127,7 +125,7 @@ m1 = brm(cosine_dist ~ LogBinomFreq + (1|Item),
 
 fixef(m1)
 
-m2 = brm(cosine_dist ~ LogBinomFreq + (1|Item),
+m2 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
          data = cosine_data_m2,
          family = gaussian(),
          warmup = 2000,
@@ -148,7 +146,7 @@ Now let's look at the relationship between the alphabetical vs nonalphabetical c
 cosine_data_m3 = cosine_data %>%
   group_by(Item) %>%
   arrange(desc(binom), .by_group = T) %>%
-  mutate(cosine_diff = cosine_dist - first(cosine_dist)) %>%
+  mutate(cosine_diff = cosine_sim - first(cosine_sim)) %>%
   group_by(Item) %>%
   top_n(1, abs(cosine_diff)) %>%
   mutate(LogOverallFreq = log(OverallFreq+1))
@@ -198,7 +196,7 @@ What if instead of the difference, we get a log odds ratio?
 cosine_data_m4 = cosine_data %>%
   group_by(Item) %>%
   arrange(desc(binom), .by_group = T) %>%
-  mutate(log_odds_cosine = log(cosine_dist/first(cosine_dist))) %>% #larger value means more preferred in alphabetical, smaller means more preferred in nonalphabetical
+  mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means more preferred in alphabetical, smaller means more preferred in nonalphabetical
   group_by(Item) %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) 
@@ -240,24 +238,24 @@ interact_plot(m4, pred = 'LogOverallFreq', modx = 'RelFreq')
 ## Plots
 
 ```{r}
-ggplot(data = cosine_data, aes(x = LogBinomFreq, y = cosine_dist, color = RelFreq)) +
+ggplot(data = cosine_data, aes(x = LogBinomFreq, y = cosine_sim, color = RelFreq)) +
   geom_point() + 
   geom_smooth(method='lm') +
   theme_bw()
 
-ggplot(data = cosine_data_m2, aes(x = LogBinomFreq, y = cosine_dist, color = RelFreq)) +
+ggplot(data = cosine_data_m2, aes(x = LogBinomFreq, y = cosine_sim, color = RelFreq)) +
   geom_point() + 
   geom_smooth(method='lm') +
   theme_bw()
 ```
 
 ```{r}
-ggplot(data = cosine_data, aes(x = log(OverallFreq), y = cosine_dist, color = RelFreq)) +
+ggplot(data = cosine_data, aes(x = log(OverallFreq), y = cosine_sim, color = RelFreq)) +
   geom_point() + 
   geom_smooth(method='lm') +
   theme_bw()
 
-ggplot(data = cosine_data, aes(x = RelFreq, y = cosine_dist, color = log(OverallFreq))) +
+ggplot(data = cosine_data, aes(x = RelFreq, y = cosine_sim, color = log(OverallFreq))) +
   geom_point() + 
   geom_smooth(method='lm') +
   theme_bw()
