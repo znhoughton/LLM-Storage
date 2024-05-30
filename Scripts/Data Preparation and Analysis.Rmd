@@ -149,7 +149,9 @@ cosine_data_m3 = cosine_data %>%
   mutate(cosine_diff = cosine_sim - first(cosine_sim)) %>%
   group_by(Item) %>%
   top_n(1, abs(cosine_diff)) %>%
-  mutate(LogOverallFreq = log(OverallFreq+1))
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
 ```
 
 One prediction is that for items with a large overall frequency, the effect of relative frequency on this difference will be larger. Now we can actually use RelFreq because it's meaningful: a more positive RelFreq means more preferred in the Alphabetical form. A larger cosine_diff means the alpha form is more similar to its parts. Thus a prediction is that for items with a high overall frequency, a larger relative frequency may result in a smaller cosine_diff (i.e., a more obscure relationship between the meaning of the phrase and its pieces). For items with a high overall frequency, a more negative relative frequency might result in a smaller cosine diff.
@@ -159,7 +161,7 @@ On the other hand, for items with a small overall frequency, the effect of relat
 ```{r}
 options(contrasts = c("contr.sum","contr.sum"))
 
-m3 = brm(cosine_diff ~ LogOverallFreq * RelFreq,
+m3 = brm(cosine_diff ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m3,
          family = gaussian(),
          warmup = 2000,
@@ -177,17 +179,17 @@ conditional_effects(m3)
 
 post_samples_m3 = as.data.frame(fixef(m3, summary = F))
 
-post_samples_OverallFreq = sum(post_samples_m3$LogOverallFreq < 0) / length(post_samples_m3$LogOverallFreq)
+post_samples_OverallFreq = sum(post_samples_m3$CenteredLogOverallFreq < 0) / length(post_samples_m3$CenteredLogOverallFreq)
   
 post_samples_RelFreq = sum(post_samples_m3$RelFreq > 0) / length(post_samples_m3$RelFreq)
 
-post_samples_overallfreq_relfreq = sum(post_samples_m3$`LogOverallFreq:RelFreq` < 0) / length(post_samples_m3$`LogOverallFreq:RelFreq`)
+post_samples_overallfreq_relfreq = sum(post_samples_m3$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m3$`CenteredLogOverallFreq:RelFreq`)
 
 print(post_samples_OverallFreq)
 print(post_samples_RelFreq)
 print(post_samples_overallfreq_relfreq) #not significant but damn close
 
-interact_plot(m3, pred = 'LogOverallFreq', modx = 'RelFreq', plot.points = T)
+interact_plot(m3, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
 ```
 
 What if instead of the difference, we get a log odds ratio?
@@ -199,11 +201,13 @@ cosine_data_m4 = cosine_data %>%
   mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means more preferred in alphabetical, smaller means more preferred in nonalphabetical
   group_by(Item) %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
-  top_n(1, abs(log_odds_cosine)) 
+  top_n(1, abs(log_odds_cosine)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
 
 options(contrasts = c("contr.sum","contr.sum"))
 
-m4 = brm(log_odds_cosine ~ LogOverallFreq * RelFreq,
+m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m4,
          family = gaussian(),
          warmup = 2000,
@@ -221,18 +225,18 @@ conditional_effects(m4)
 
 post_samples_m4 = as.data.frame(fixef(m4, summary = F))
 
-post_samples_OverallFreq = sum(post_samples_m4$LogOverallFreq < 0) / length(post_samples_m4$LogOverallFreq)
+post_samples_OverallFreq = sum(post_samples_m4$CenteredLogOverallFreq < 0) / length(post_samples_m4$CenteredLogOverallFreq)
   
 post_samples_RelFreq = sum(post_samples_m4$RelFreq > 0) / length(post_samples_m4$RelFreq)
 
-post_samples_overallfreq_relfreq = sum(post_samples_m4$`LogOverallFreq:RelFreq` < 0) / length(post_samples_m4$`LogOverallFreq:RelFreq`)
+post_samples_overallfreq_relfreq = sum(post_samples_m4$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m4$`CenteredLogOverallFreq:RelFreq`)
 
 print(post_samples_OverallFreq)
 print(post_samples_RelFreq)
 print(post_samples_overallfreq_relfreq) #not significant but damn close
 
-interact_plot(m4, pred = 'LogOverallFreq', modx = 'RelFreq', plot.points = T)
-interact_plot(m4, pred = 'LogOverallFreq', modx = 'RelFreq')
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq')
 ```
 
 ## Plots
