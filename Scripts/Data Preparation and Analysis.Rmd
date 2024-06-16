@@ -236,7 +236,7 @@ print(post_samples_RelFreq)
 print(post_samples_overallfreq_relfreq) #not significant but damn close
 
 interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
-interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq')
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', interval = T)
 ```
 
 ## Plots
