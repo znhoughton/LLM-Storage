@@ -115,7 +115,7 @@ def write_result_to_file():
 def main():
     if __name__ == "__main__":
             t1 = time.perf_counter()
-            path = 'test/'
+            path = 'Dolma/'
             gzip_files = [(path + f) for f in listdir(path) if isfile(join(path, f))]	#all the gzip files in the directory
             results = process_gzip_file_parallel(gzip_files)
             process_results(results)
@@ -128,7 +128,7 @@ def main():
 def main_serial():
     if __name__ == "__main__":
         t1 = time.perf_counter()
-        path = 'test/'
+        path = 'Dolma/'
         gzip_files = [(path + f) for f in listdir(path) if isfile(join(path, f))]	#all the gzip files in the directory
         for i in gzip_files:
             print('Current file: ', i)
@@ -143,7 +143,6 @@ t1 = time.perf_counter()
 main()
 t2 = time.perf_counter()
 t2 - t1
-t1 = time.perf_counter()
-main_serial()
-t2 = time.perf_counter()
-t2 - t1
+
+
+
