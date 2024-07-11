@@ -84,20 +84,6 @@ def main():
             t2 = time.perf_counter()
             print(t2 - t1)
         
-        
-
-def main_serial():
-    if __name__ == "__main__":
-        t1 = time.perf_counter()
-        path = 'Dolma/'
-        gzip_files = [(path + f) for f in listdir(path) if isfile(join(path, f))]	#all the gzip files in the directory
-        for i in gzip_files:
-            print('Current file: ', i)
-            process_gzip_file_serial(i)
-        write_result_to_file_serial()
-        t2 = time.perf_counter()
-        print(t2 - t1)
-
 
 
 t1 = time.perf_counter()
