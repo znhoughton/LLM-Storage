@@ -55,7 +55,7 @@ def write_result_to_file_serial():
             f.write( "{}\t{}".format(k,v))
 
 # this is for parallel processing
-pool_size = 50
+pool_size = 5
 
 #one_gram_counts_parallel = Counter()
 #two_gram_counts_parallel = Counter()
