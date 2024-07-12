@@ -8,6 +8,9 @@ from os.path import isfile, join
 import gzip
 import time
 import glob
+import pandas as pd
+import csv
+import os
 
 def onegram(sentence):
 	text = re.sub("[^\w\d'\s]+",'',sentence)
@@ -31,7 +34,7 @@ three_gram_counts_serial = Counter()
 #troubleshoot_counter = 0
 def process_gzip_file_serial(gzip_file): #open each gzip file and count 1-gram, 2-gram, and 3-gram, might do 4 and 5-grams later
     with gzip.open(gzip_file,'rt', encoding='utf-8') as f:  
-        troubleshoot_counter = 0
+        #troubleshoot_counter = 0
         for line in f:
             try: 
                 #troubleshoot_counter += 1
@@ -63,6 +66,7 @@ pool_size = 10
 #three_gram_counts_parallel = Counter()
 
 def process_individual_file(gzip_file):
+     print(f"Current File: {gzip_file}")
      one_gram_ind_counter = Counter()
      two_gram_ind_counter = Counter()
      three_gram_ind_counter= Counter()
@@ -101,61 +105,64 @@ def process_gzip_file_parallel(gzip_file):
 
 
 def write_file_to_csv(counter_file, file, ngram_type):
-	file_name = file_type + file
-	with open(f'../{file_type}/{file_name}.csv', 'wb') as csvfile:
-		fieldnames = ['ngram', 'count']
-		writer = csv.writer(csvfile)
-		writer.writerow(fieldnames)
-		for k,v in counter_file.items():
-			writer.writerow("{}\t{}".format(k,v))	
+       file_name = (os.path.splitext(file)[0]).split('/')[-1]
+       print(f"Currently Writing: {file_name}")
+       with open(f'./{ngram_type}/{file_name}.csv', 'w') as csvfile:
+            fieldnames = ['ngram', 'count']
+            writer = csv.writer(csvfile)
+            writer.writerow(fieldnames)
+            if ngram_type == 'onegram_files':
+                 for k,v in counter_file.items():
+                       writer.writerow([k] + [v])
+            else:
+                  for k,v in counter_file.items():
+                   	 writer.writerow(list(k) + [v])	
 		
 def process_onegram_files():
-	onegram_files = glob('./onegram_files/*.txt')
-	intermediate_dfs = []
-	batch_size = 100
-	for i in range(0, len(onegram_files), batch_size):
-		batch = onegram_files[i:i + batch_size]
-		batch_df = pd.concat(batch).groupby('ngram', as_index=False).sum()
-		intermediate_dfs.append(batch_df)
-
-	# Now combine all intermediate results
-	result_df = pd.concat(intermediate_dfs).groupby('ngram', as_index=False).sum()
-
-	#write it into a csv
-
-	result_df.to_csv('full_onegram_corpus.csv')
+      print("Currently processing onegram_files")
+      onegram_files = glob.glob('./onegram_files/*.csv')
+      intermediate_dfs = []
+      batch_size = 100
+      for i in range(0, len(onegram_files), batch_size):
+            print(f"Currently processing batch {i} / {batch_size}")
+            batch = onegram_files[i:i + batch_size]
+            batch_df = pd.concat(batch).groupby('ngram', as_index=False).sum()
+            intermediate_dfs.append(batch_df)
+      result_df = pd.concat(intermediate_dfs).groupby('ngram', as_index=False).sum()
+      result_df.to_csv('full_onegram_corpus.csv')
+      
 
 def process_bigram_files():
-	bigram_files = glob('./bigram_files/*.txt')
-	intermediate_dfs = []
-	batch_size = 100
-	for i in range(0, len(bigram_files), batch_size):
-		batch = bigram_files[i:i + batch_size]
-		batch_df = pd.concat(batch).groupby('ngram', as_index=False).sum()
-		intermediate_dfs.append(batch_df)
+      print("Currently processing bigram files")
+      bigram_files = glob.glob('./bigram_files/*.csv')
+      intermediate_dfs = []
+      batch_size = 100
+      for i in range(0, len(bigram_files), batch_size):
+            print(f"Currently processing batch {i} / {batch_size}")
+            batch = bigram_files[i:i + batch_size]
+            batch_df = pd.concat(batch).groupby('ngram', as_index=False).sum()
+            intermediate_dfs.append(batch_df)  
+      result_df = pd.concat(intermediate_dfs).groupby('ngram', as_index=False).sum()
+      result_df.to_csv('full_bigram_corpus.csv')
+      
+	       
+	
 
-	# Now combine all intermediate results
-	result_df = pd.concat(intermediate_dfs).groupby('ngram', as_index=False).sum()
 
-	#write it into a csv
-
-	result_df.to_csv('full_bigram_corpus.csv')
-
-def process_trigram_files
-	trigram_files = glob('./trigram_files/*.txt')
-	intermediate_dfs = []
-	batch_size = 100
-	for i in range(0, len(trigram_files), batch_size):
-		batch = trigram_files[i:i + batch_size]
-		batch_df = pd.concat(batch).groupby('ngram', as_index=False).sum()
-		intermediate_dfs.append(batch_df)
-
-	# Now combine all intermediate results
-	result_df = pd.concat(intermediate_dfs).groupby('ngram', as_index=False).sum()
-
-	#write it into a csv
-
-	result_df.to_csv('full_trigram_corpus.csv')
+def process_trigram_files():
+      print("Currently processing bigram files")
+      trigram_files = glob.glob('./trigram_files/*.csv')
+      intermediate_dfs = []
+      batch_size = 100
+      for i in range(0, len(trigram_files), batch_size):
+          print(f"Currently processing batch {i} / {batch_size}")
+          batch = trigram_files[i:i + batch_size]
+          batch_df = pd.concat(batch).groupby('ngram', as_index=False).sum()
+          intermediate_dfs.append(batch_df)
+      result_df = pd.concat(intermediate_dfs).groupby('ngram', as_index=False).sum()
+      result_df.to_csv('full_trigram_corpus.csv')
+      
+	
 
 
 	
@@ -167,7 +174,7 @@ def process_trigram_files
 #               f.write( "{}\t{}".format(k,v))			
 #    with open("two_gram_counts.txt", 'w') as f:
 #        for k,v in two_gram_counts_parallel.items():
-3            f.write( "{}\t{}".format(k,v))			
+#            f.write( "{}\t{}".format(k,v))			
 #    with open("three_gram_counts.txt", 'w') as f:
 #        for k,v in three_gram_counts_parallel.items():
 #            f.write( "{}\t{}".format(k,v))
@@ -179,11 +186,11 @@ def main():
             t1 = time.perf_counter()
             path = 'Dolma/'
             gzip_files = [(path + f) for f in listdir(path) if isfile(join(path, f))]	#all the gzip files in the directory
-            results = process_gzip_file_parallel(gzip_files)
+            process_gzip_file_parallel(gzip_files)
             #process_results(results)
-	    process_onegram_files()
-	    process_bigram_files()
-	    process_trigram_files()
+            process_onegram_files()
+            process_bigram_files()
+            process_trigram_files()
             #write_result_to_file()
             t2 = time.perf_counter()
             print(t2 - t1)
