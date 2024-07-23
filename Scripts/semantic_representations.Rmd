@@ -11,7 +11,7 @@ library(tidyverse)
 library(reticulate)
 myenvs = conda_list()
 envname = myenvs$name[2]
-use_condaenv(envname, required = T)
+use_condaenv(envname)
 ```
 
 ## Loading Data
@@ -32,25 +32,21 @@ word2 = binomial_data$Word2
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, logging
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+#from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 import numpy as np
+#from hf_olmo import OLMoForCausalLM, OLMoTokenizerFast
+import hf_olmo
 
-model_name_or_path = "TheBloke/Llama-2-13b-GPTQ"
+model_name_or_path = "allenai/OLMo-7B"
 model_basename = "model"
 
-use_triton = False
+#use_triton = False
 
-tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code = True)
 tokenizer.pad_token = tokenizer.eos_token
 
 
-model = AutoGPTQForCausalLM.from_quantized(model_name_or_path,
-        model_basename=model_basename,
-        use_safetensors=True,
-        trust_remote_code=True,
-        device="cuda:0",
-        use_triton=use_triton,
-        quantize_config=None)
+model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
         
 model.config.pad_token_id = model.config.eos_token_id
 ```
@@ -548,7 +544,7 @@ binomial_representations = torch.stack(binomial_representations)
 ```{r}
 cosine_diffs = py$cosine_diffs_df
 
-write_csv(cosine_diffs, '../Data/cosine_diffs.csv')
+write_csv(cosine_diffs, '../Data/olmo_cosine_diffs.csv')
 ```
 
 ## Visualization
