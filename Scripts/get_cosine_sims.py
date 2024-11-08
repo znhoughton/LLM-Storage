@@ -118,7 +118,7 @@ def main(model_name, sentences, word1, word2):
 
     #the way OlmO counts the offsets is different for some reason. So we have to subtract one from the index when it's not 
     #an olmo model. It's a bit weird but 
-    if model_name == 'gpt2-xl' or model_name == 'meta-llama/Llama-2-7b-hf':
+    if model_name == 'gpt2-xl' or model_name == 'meta-llama/Llama-2-7b-hf' or model_name == 'gpt2':
         modeltype = 'v2'
     else:
         modeltype = 'v1'
@@ -228,13 +228,14 @@ def main(model_name, sentences, word1, word2):
     cosine_diffs_comp_df.to_csv(f"../Data/{model_name_for_saving}_compositional_cosine_diffs.csv")
 
 
-main('gpt2-xl', sentences, word1, word2)
-main('meta-llama/Llama-2-7b-hf', sentences, word1, word2)
-main('allenai/OLMo-1B', sentences, word1, word2) 
+main('gpt2', sentences, word1, word2)
+#main('gpt2-xl', sentences, word1, word2)
+#main('meta-llama/Llama-2-7b-hf', sentences, word1, word2)
+#main('allenai/OLMo-1B', sentences, word1, word2) 
 #main('allenai/OLMo-7B', sentences, word1, word2)
 
 
-# model_names = ['gpt2-xl', 'meta-llama/Llama-2-7b-hf', 'allenai/OLMo-1B', 'allenai/OLMo-7B']
+# model_names = ['gpt2', 'gpt2-xl', 'meta-llama/Llama-2-7b-hf', 'allenai/OLMo-1B', 'allenai/OLMo-7B']
 
 # for model in model_names:
 #     print(f"Processing {model} Now")
