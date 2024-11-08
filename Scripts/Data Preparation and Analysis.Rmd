@@ -92,8 +92,10 @@ $$
 CosineSim \sim BinomFreq + (1|Item) 
 $$
 
+### Olmo-7b
+
 ```{r}
-cosine_data = read_csv('../Data/cosine_diffs.csv') %>%
+cosine_data = read_csv('../Data/allenai_OLMo-1B_compositional_cosine_diffs.csv') %>%
   left_join(all_sentences, by = c('binom' = 'Binomial'))
 
 cosine_data = cosine_data %>%
@@ -108,7 +110,7 @@ cosine_data_m2 = cosine_data %>%
 #test_na = cosine_data[is.na(cosine_data$cosine_diffs),]
 ```
 
-Model:
+#### Model:
 
 ```{r}
 options(contrasts = c("contr.sum","contr.sum"))
@@ -198,7 +200,7 @@ What if instead of the difference, we get a log odds ratio?
 cosine_data_m4 = cosine_data %>%
   group_by(Item) %>%
   arrange(desc(binom), .by_group = T) %>%
-  mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means more preferred in alphabetical, smaller means more preferred in nonalphabetical
+  mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means that the alphabetical form is more similar to its parts than the nonalphabetical
   group_by(Item) %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) %>%
@@ -215,7 +217,417 @@ m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
          cores = 4,
          chains = 4,
          #init = 0.1,
-         file = '../Data/model4')
+         file = '../Data/model4.1')
+
+fixef(m4)
+
+conditional_effects(m4)
+
+
+
+post_samples_m4 = as.data.frame(fixef(m4, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m4$CenteredLogOverallFreq < 0) / length(post_samples_m4$CenteredLogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m4$RelFreq > 0) / length(post_samples_m4$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m4$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m4$`CenteredLogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', interval = T)
+```
+
+### GPT 2-XL
+
+```{r}
+cosine_data = read_csv('../Data/gpt2-xl_compositional_cosine_diffs.csv') %>%
+  left_join(all_sentences, by = c('binom' = 'Binomial'))
+
+cosine_data = cosine_data %>%
+  mutate(Item = factor(Item)) %>%
+  mutate(LogBinomFreq = log(BinomFreq+1)) %>%
+  mutate(RelFreq = RelFreq - 0.5) %>% #centering RelFreq
+  filter(!Item %in% c(125, 176)) %>% #these two items were giving llama13 some trouble
+  rename('cosine_sim' = cosine_diffs)
+
+cosine_data_m2 = cosine_data %>%
+  filter(LogBinomFreq > 0) #These items might be driving the effect, let's make sure this isn't the case
+#test_na = cosine_data[is.na(cosine_data$cosine_diffs),]
+```
+
+#### Model
+
+```{r}
+options(contrasts = c("contr.sum","contr.sum"))
+
+m1 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
+         data = cosine_data,
+         family = gaussian(),
+         warmup = 10000,
+         iter = 20000,
+         cores = 4,
+         chains = 4,
+         control = list(max_treedepth = 15, adapt_delta = 0.95),
+         file = '../Data/model1_gpt')
+
+fixef(m1)
+
+m2 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
+         data = cosine_data_m2,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         file = '../Data/model2_gpt')
+
+fixef(m2)
+
+conditional_effects(m1)
+conditional_effects(m2)
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+cosine_data_m3 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(cosine_diff = cosine_sim - first(cosine_sim)) %>%
+  group_by(Item) %>%
+  top_n(1, abs(cosine_diff)) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+
+m3 = brm(cosine_diff ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m3,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model3_gpt')
+
+fixef(m3)
+
+conditional_effects(m3)
+
+
+
+post_samples_m3 = as.data.frame(fixef(m3, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m3$CenteredLogOverallFreq < 0) / length(post_samples_m3$CenteredLogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m3$RelFreq > 0) / length(post_samples_m3$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m3$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m3$`CenteredLogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m3, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+
+
+cosine_data_m4 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means that the alphabetical form is more similar to its parts than the nonalphabetical
+  group_by(Item) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  top_n(1, abs(log_odds_cosine)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_gpt')
+
+fixef(m4)
+
+conditional_effects(m4)
+
+
+
+post_samples_m4 = as.data.frame(fixef(m4, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m4$CenteredLogOverallFreq < 0) / length(post_samples_m4$CenteredLogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m4$RelFreq > 0) / length(post_samples_m4$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m4$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m4$`CenteredLogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', interval = T)
+```
+
+### Llama2 7b
+
+###  
+
+```{r}
+cosine_data = read_csv('../Data/meta-llama_Llama-2-7b-hf_compositional_cosine_diffs.csv') %>%
+  left_join(all_sentences, by = c('binom' = 'Binomial'))
+
+cosine_data = cosine_data %>%
+  mutate(Item = factor(Item)) %>%
+  mutate(LogBinomFreq = log(BinomFreq+1)) %>%
+  mutate(RelFreq = RelFreq - 0.5) %>% #centering RelFreq
+  filter(!Item %in% c(125, 176)) %>% #these two items were giving llama13 some trouble
+  rename('cosine_sim' = cosine_diffs)
+
+cosine_data_m2 = cosine_data %>%
+  filter(LogBinomFreq > 0) #These items might be driving the effect, let's make sure this isn't the case
+#test_na = cosine_data[is.na(cosine_data$cosine_diffs),]
+```
+
+#### Model
+
+```{r}
+options(contrasts = c("contr.sum","contr.sum"))
+
+m1 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
+         data = cosine_data,
+         family = gaussian(),
+         warmup = 10000,
+         iter = 20000,
+         cores = 4,
+         chains = 4,
+         control = list(max_treedepth = 15, adapt_delta = 0.95),
+         file = '../Data/model1_llama')
+
+fixef(m1)
+
+m2 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
+         data = cosine_data_m2,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         file = '../Data/model2_llama')
+
+fixef(m2)
+
+conditional_effects(m1)
+conditional_effects(m2)
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+cosine_data_m3 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(cosine_diff = cosine_sim - first(cosine_sim)) %>%
+  group_by(Item) %>%
+  top_n(1, abs(cosine_diff)) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+
+m3 = brm(cosine_diff ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m3,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model3_llama')
+
+fixef(m3)
+
+conditional_effects(m3)
+
+
+
+post_samples_m3 = as.data.frame(fixef(m3, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m3$CenteredLogOverallFreq < 0) / length(post_samples_m3$CenteredLogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m3$RelFreq > 0) / length(post_samples_m3$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m3$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m3$`CenteredLogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m3, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+
+
+cosine_data_m4 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means that the alphabetical form is more similar to its parts than the nonalphabetical
+  group_by(Item) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  top_n(1, abs(log_odds_cosine)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_llama')
+
+fixef(m4)
+
+conditional_effects(m4)
+
+
+
+post_samples_m4 = as.data.frame(fixef(m4, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m4$CenteredLogOverallFreq < 0) / length(post_samples_m4$CenteredLogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m4$RelFreq > 0) / length(post_samples_m4$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m4$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m4$`CenteredLogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+interact_plot(m4, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', interval = T)
+```
+
+### Olmo 1b
+
+```{r}
+cosine_data = read_csv('../Data/allenai_OLMo-1B_compositional_cosine_diffs.csv') %>%
+  left_join(all_sentences, by = c('binom' = 'Binomial'))
+
+cosine_data = cosine_data %>%
+  mutate(Item = factor(Item)) %>%
+  mutate(LogBinomFreq = log(BinomFreq+1)) %>%
+  mutate(RelFreq = RelFreq - 0.5) %>% #centering RelFreq
+  filter(!Item %in% c(125, 176)) %>% #these two items were giving llama13 some trouble
+  rename('cosine_sim' = cosine_diffs)
+
+cosine_data_m2 = cosine_data %>%
+  filter(LogBinomFreq > 0) #These items might be driving the effect, let's make sure this isn't the case
+#test_na = cosine_data[is.na(cosine_data$cosine_diffs),]
+```
+
+#### Model
+
+```{r}
+options(contrasts = c("contr.sum","contr.sum"))
+
+m1 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
+         data = cosine_data,
+         family = gaussian(),
+         warmup = 10000,
+         iter = 20000,
+         cores = 4,
+         chains = 4,
+         control = list(max_treedepth = 15, adapt_delta = 0.95),
+         file = '../Data/model1_olmo1b')
+
+fixef(m1)
+
+m2 = brm(cosine_sim ~ LogBinomFreq + (1|Item),
+         data = cosine_data_m2,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         file = '../Data/model2_olmo1b')
+
+fixef(m2)
+
+conditional_effects(m1)
+conditional_effects(m2)
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+cosine_data_m3 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(cosine_diff = cosine_sim - first(cosine_sim)) %>%
+  group_by(Item) %>%
+  top_n(1, abs(cosine_diff)) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+
+m3 = brm(cosine_diff ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m3,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model3_olmo1b')
+
+fixef(m3)
+
+conditional_effects(m3)
+
+
+
+post_samples_m3 = as.data.frame(fixef(m3, summary = F))
+
+post_samples_OverallFreq = sum(post_samples_m3$CenteredLogOverallFreq < 0) / length(post_samples_m3$CenteredLogOverallFreq)
+  
+post_samples_RelFreq = sum(post_samples_m3$RelFreq > 0) / length(post_samples_m3$RelFreq)
+
+post_samples_overallfreq_relfreq = sum(post_samples_m3$`CenteredLogOverallFreq:RelFreq` < 0) / length(post_samples_m3$`CenteredLogOverallFreq:RelFreq`)
+
+print(post_samples_OverallFreq)
+print(post_samples_RelFreq)
+print(post_samples_overallfreq_relfreq) #not significant but damn close
+
+interact_plot(m3, pred = 'CenteredLogOverallFreq', modx = 'RelFreq', plot.points = T)
+
+
+cosine_data_m4 = cosine_data %>%
+  group_by(Item) %>%
+  arrange(desc(binom), .by_group = T) %>%
+  mutate(log_odds_cosine = log(cosine_sim/first(cosine_sim))) %>% #larger value means that the alphabetical form is more similar to its parts than the nonalphabetical
+  group_by(Item) %>%
+  mutate(LogOverallFreq = log(OverallFreq+1)) %>%
+  top_n(1, abs(log_odds_cosine)) %>%
+  ungroup() %>%
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+
+options(contrasts = c("contr.sum","contr.sum"))
+
+m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_olmo1b')
 
 fixef(m4)
 
