@@ -846,7 +846,7 @@ llama2 = llama2_plot[[1]] %>%
   ggtitle('Llama2 7B Model') +
   theme_bw() 
 
-ggarrange(gpt2, gpt2xl, olmo1b, olmo7b, llama2)
+ggarrange(gpt2, gpt2xl, olmo1b, olmo7b, llama2, nrow=3, widths = c(0.5, 1)))
 #ggarrange(gpt2_plot, gpt2xl_plot, olmo1b_plot, olmo7b_plot, llama2_plot, nrow=3)
 
 ```
