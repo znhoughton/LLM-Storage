@@ -797,7 +797,7 @@ olmo1b_plot = conditional_effects(m4, plot = F, effects = "CenteredLogOverallFre
 
 ## Plots
 
-```{r}
+```{r fig.height=15, fig.width=15}
 library(ggpubr)
 
 gpt2 = gpt2_plot[[1]] %>%
@@ -846,7 +846,7 @@ llama2 = llama2_plot[[1]] %>%
   ggtitle('Llama2 7B Model') +
   theme_bw() 
 
-ggarrange(gpt2, gpt2xl, olmo1b, olmo7b, llama2, nrow=3, widths = c(0.5, 1))
+ggarrange(gpt2, gpt2xl, olmo1b, olmo7b, llama2, nrow=3,ncol=2, align='v')
 #ggarrange(gpt2_plot, gpt2xl_plot, olmo1b_plot, olmo7b_plot, llama2_plot, nrow=3)
 
 ```
