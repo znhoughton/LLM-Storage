@@ -1,0 +1,392 @@
+---
+title: "LLM Storage Writeup"
+author: "Zachary Nicholas Houghton"
+format: pdf
+editor: visual
+bibliography: references.bib
+---
+
+```{r setup, include=F}
+library(tidyverse)
+library(brms)
+library(ggpubr)
+
+gpt2_m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_gpt2')
+
+
+gpt2_plot = conditional_effects(gpt2_m4, plot = F, effects = "CenteredLogOverallFreq:RelFreq", int_conditions=list(RelFreq = c(-0.25, 0, 0.25)))
+
+gpt2xl_m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_gpt')
+
+gpt2xl_plot = conditional_effects(gpt2xl_m4, plot = F, effects = "CenteredLogOverallFreq:RelFreq", int_conditions=list(RelFreq = c(-0.25, 0, 0.25)))
+
+olmo1b_m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_olmo1b')
+
+olmo1b_plot = conditional_effects(olmo1b_m4, plot = F, effects = "CenteredLogOverallFreq:RelFreq", int_conditions=list(RelFreq = c(-0.25, 0, 0.25)))
+
+olmo7b_m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4.1')
+
+
+omo7b_plot = conditional_effects(olmo7b_m4, plot = F, effects = "CenteredLogOverallFreq:RelFreq", int_conditions=list(RelFreq = c(-0.25, 0, 0.25)))
+
+
+llama2_7b_m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+         data = cosine_data_m4,
+         family = gaussian(),
+         warmup = 2000,
+         iter = 4000,
+         cores = 4,
+         chains = 4,
+         #init = 0.1,
+         file = '../Data/model4_llama')
+
+
+llama2_plot = conditional_effects(llama2_7b_m4, plot = F, effects = "CenteredLogOverallFreq:RelFreq", int_conditions=list(RelFreq = c(-0.25, 0, 0.25)))
+```
+
+<!--# What if we frame this as: Large Language Models make novel predictions in humans. Maybe we can write a larger opinion piece on the role of LLMs in linguistics? Can talk about the history of computational models, such as the development of the Rescorla-Wagner learning theory model, etc -->
+
+## Methods
+
+### Dataset
+
+### Semantic Embeddings
+
+In order to examine the semantic compositionality of binomials, we examined the semantic embeddings in five different large language models: GPT-2 [@radford2019] family, the Llama-2 [@touvron2023] family, and the Olmo [@OLMo2024] family.[^1]
+
+[^1]: All of our code can be found publicly available at \url{https://github.com/znhoughton/LLM-Storage}.
+
+For each LLM we gathered two key measurements: First, we examined the second-to-last hidden layer for each binomial in our dataset in a sentence context. Since each LLMs returns an embedding for each word, we took the mean of these embeddings to represent the semantic embedding for the holistic binomial (hereafter referred to as holistic embeddings). Second, we obtained the embedding for each word individually, outside of a sentence context. We then took the mean of these embeddings to represent the semantic embedding for the compositional form of the binomial (hereafter referred to as compositional embeddings).
+
+We then measured the cosine similarity between the holistic embeddings and the compositional embeddings for the alphabetical and nonalphabetical forms of each binomial. This is presented mathematically in @eq-cosalpha and @eq-cosnonalpha, where $cos_\alpha$ is the cosine similarity between the holistic embeddings of the alphabetical form of the binomial and the compositional form, $cos_{\neg\alpha}$ is the cosine similarity between the embeddings of the nonalphabetical form of the binomial and the compositional form, $h_\alpha$ and $h_{\neg\alpha}$ are the embeddings of the holistic form of the binomial in alphabetical and nonalphabetical forms respectively (in a sentence context), and $c$ is the embeddings of the compositional form. Since $c$ represents the mean of the embeddings for each word in the binomial out of context, order does not matter. Cosine similarity ranges from -1 to 1 where 1 indicates two extremely similar vectors and -1 indicates two extremely dissimilar vectors.
+
+$$
+\cos \alpha = \frac{\mathbf{h_\alpha} \cdot \mathbf{c}}{\|\mathbf{h_\alpha}\| \|\mathbf{c}\|}
+$$ {#eq-cosalpha}
+
+$$
+\cos \neg\alpha = \frac{\mathbf{h_{\neg\alpha}} \cdot \mathbf{c}}{\|\mathbf{h_{\neg\alpha}}\| \|\mathbf{c}\|}
+$$ {#eq-cosnonalpha}
+
+For each binomial, we then took the quotient of this value for the alphabetical form of the binomial and the nonalphabetical form of the binomial and subsequently logged this value (@eq-cossim). A larger positive value represents a greater degree of similarity between the alphabetical form's holistic form and the compositional form (with respect to the nonalphabetical form) and a larger negative value represents a greater degree of similarity between the nonalphabetical form's holistic form and its compositional form. In other words, if the value is larger for a given binomial, the alphabetical form in a sentential context is more similar to the compositional form than the nonalphabetical form.
+
+$$
+LogCosSim = log(\frac{cos_\alpha}{cos_{\neg\alpha}})
+$$ {#eq-cossim}
+
+### Analysis
+
+We used a Bayesian mixed-effects model to examine how the semantic similarity between the holistic embeddings and the compositional embeddings tradeoff as a function of relative and overall frequency. Specifically, we modeled $LogCosSim$ as a function of overall frequency, which was centered and logged, $RelFreq$ which ranged from -0.5 to 0.5 (with 0.5 representing a binomial that appears only in the alphabetical form, and -0.5 representing a binomial that appears only in the nonalphabetical form), and their interaction. Our model is presented below in @eq-m4.
+
+$$
+LogCosSim \sim OverallFreq*RelFreq
+$$ {#eq-m4}
+
+## Results
+
+The results of our models for each LLM are presented below. For all of our models, following [@houghton2024] we report the percentage of posterior samples greater than zero. Since we are using Bayesian mixed-effects models, we are not forced into a binary of significant or non-significant. By reporting the percentage of posterior samples greater than zero, we can present a more nuanced picture of our results.
+
+### GPT-2
+
+Our mixed-effects model is presented below in @tbl-gpt2modelresults and visualized in @fig-gpt2. There was a meaningful main-effect of relative frequency ($\beta=-0.035$), suggesting that as relative frequency increases (i.e., for binomials with an increasing preference for the alphabetical form), the holistic embeddings for the alphabetical form are *less* similar to the compositional embeddings than the nonalphabetical holistic embeddings are. Further, there was a meaningful interaction effect between overall frequency and relative frequency ($\beta=-0.005$), suggesting that for high-frequency binomials there is a stronger effect of relative frequency than for low-frequency binomials. Specifically, for high-frequency binomials, those with a larger relative frequency have a lower $LogCosSim$ value. That is, for high-frequency binomials, the more preferred ordering's holistic embeddings are less similar to the compositional embeddings than the less preferred ordering's holistic embeddings are.
+
+Our results suggest that GPT-2 is learning separate representations for high-frequency binomials, but may not be learning separate representations for low-frequency binomials.
+
+```{r, echo = F, message = F, results='asis'}
+#| label: tbl-gpt2modelresults
+#| tbl-cap: "Model results for our Bayesian mixed-effects model for GPT-2."
+
+
+percent_greater_zero = data.frame(fixef(gpt2_m4, summary = F)) %>%
+  pivot_longer(cols = everything(), names_to = 'beta_coefficient', values_to = 'estimate') %>%
+  group_by(beta_coefficient) %>%
+  summarize((sum(estimate > 0) / length(estimate)) * 100)
+  
+
+summary_table4 = as.data.frame(fixef(gpt2_m4)) %>%
+  mutate_if(is.numeric,
+            formatC,
+            format = 'f',
+            digits = 3) 
+
+percent_greater_zero = percent_greater_zero %>%
+  arrange(match(beta_coefficient, c('Intercept', 'CenteredLogOverallFreq', 'RelFreq', 'CenteredLogOverallFreq:RelFreq')))
+
+
+summary_table4 = summary_table4 %>%
+  mutate(percent_greater_zero = percent_greater_zero$`(sum(estimate > 0)/length(estimate)) * 100`) %>%
+  rename('% Samples > 0' = `percent_greater_zero`)
+
+rownames(summary_table4) = c('Intercept', 'OverallFreq', 'RelFreq', 'OverallFreq:RelFreq')
+
+knitr::kable(summary_table4, booktabs = T)
+
+
+```
+
+```{r, echo = F, out.width = '80%', fig.align = 'center', warning = F, message = F}
+#| label: fig-gpt2
+#| fig-cap: "Visualization of our model predictions for GPT-2 at relative frequency values of -0.25, 0, and 0.25"
+
+
+gpt2 = gpt2_plot[[1]] %>%
+  ggplot(aes(x=CenteredLogOverallFreq, y = estimate__, color = factor(RelFreq))) +
+  geom_smooth(method='lm', formula=y~x, se=F) +
+  geom_ribbon(aes(ymin=lower__, ymax = upper__, fill = factor(RelFreq)), alpha = 0.5) +
+  ylab ('Log Cosine Similarity') +
+  xlab('Overall Frequency') +
+  #ggtitle('GPT2 Model') +
+  theme_bw()
+
+gpt2
+```
+
+### GPT-2 XL
+
+Our mixed-effects model is presented below in @tbl-gpt2xlmodelresults and visualized in @fig-gpt2xl. We found a meaningful main-effect for overall frequency ($\beta=0.002$), though this seems to be driven largely by our interaction effect. We also found a meaningful interaction effect ($\beta=0.003$) between relative frequency and overall frequency, suggesting that for higher-frequency binomials, the holistic embeddings for the alphabetical form were *more* similar to the compositional form than the holistic embeddings for the nonalphabetical form were.
+
+```{r, echo = F, message = F, results='asis'}
+#| label: tbl-gpt2xlmodelresults
+#| tbl-cap: "Model results for our Bayesian mixed-effects model for GPT-2 XL."
+
+
+percent_greater_zero = data.frame(fixef(gpt2xl_m4, summary = F)) %>%
+  pivot_longer(cols = everything(), names_to = 'beta_coefficient', values_to = 'estimate') %>%
+  group_by(beta_coefficient) %>%
+  summarize((sum(estimate > 0) / length(estimate)) * 100)
+  
+
+summary_table4 = as.data.frame(fixef(gpt2xl_m4)) %>%
+  mutate_if(is.numeric,
+            formatC,
+            format = 'f',
+            digits = 3) 
+
+percent_greater_zero = percent_greater_zero %>%
+  arrange(match(beta_coefficient, c('Intercept', 'CenteredLogOverallFreq', 'RelFreq', 'CenteredLogOverallFreq:RelFreq')))
+
+
+summary_table4 = summary_table4 %>%
+  mutate(percent_greater_zero = percent_greater_zero$`(sum(estimate > 0)/length(estimate)) * 100`) %>%
+  rename('% Samples > 0' = `percent_greater_zero`)
+
+rownames(summary_table4) = c('Intercept', 'OverallFreq', 'RelFreq', 'OverallFreq:RelFreq')
+
+knitr::kable(summary_table4, booktabs = T)
+
+
+```
+
+```{r, echo = F, out.width = '80%', fig.align = 'center', warning = F, message = F}
+#| label: fig-gpt2xl
+#| fig-cap: "Visualization of our model predictions for GPT-2 XL at relative frequency values of -0.25, 0, and 0.25"
+
+
+gpt2xl = gpt2xl_plot[[1]] %>%
+  ggplot(aes(x = CenteredLogOverallFreq, y = estimate__)) +
+  geom_smooth(aes(color = factor(RelFreq)), method = 'lm', formula = y ~ x, se = FALSE, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = factor(RelFreq)), alpha = 0.5) +
+  ylab('Log Cosine Similarity') +
+  xlab('Overall Frequency') +
+  scale_fill_discrete(name = "RelFreq") +
+  theme_bw()
+
+gpt2xl
+```
+
+### Olmo-1B
+
+Our mixed-effects model is presented below in @tbl-olmo1bmodelresults and visualized in @fig-olmo1b. We found a meaningful main-effect of relative frequency ($\beta=-0.152$), suggesting that for binomials with a stronger preference for the alphabetical form, the holistic embeddings of the alphabetical form were less similar to the compositional form than the holistic embeddings of the nonalphabetical form were. We also found a meaningful interaction effect ($\beta=-0.017$), suggesting that for lower-frequency binomials there is not much of a difference between the alphabetical and nonalphabetical forms in terms of their semantic embeddings, however for more-frequent binomials that occur more in the alphabetical form, the holistic embeddings for the alphabetical form are *less* similar to the compositional form than the holistic embeddings for the nonalphabetical form.
+
+Our results suggest that Olmo-1B, similar to GPT2, is learning separate representations for high-frequency binomials, but may not be learning separate representations for low-frequency binomials.
+
+```{r, echo = F, message = F, results='asis'}
+#| label: tbl-olmo1bmodelresults
+#| tbl-cap: "Model results for our Bayesian mixed-effects model for Olmo 1B."
+
+
+percent_greater_zero = data.frame(fixef(olmo1b_m4, summary = F)) %>%
+  pivot_longer(cols = everything(), names_to = 'beta_coefficient', values_to = 'estimate') %>%
+  group_by(beta_coefficient) %>%
+  summarize((sum(estimate > 0) / length(estimate)) * 100)
+  
+
+summary_table4 = as.data.frame(fixef(olmo1b_m4)) %>%
+  mutate_if(is.numeric,
+            formatC,
+            format = 'f',
+            digits = 3) 
+
+percent_greater_zero = percent_greater_zero %>%
+  arrange(match(beta_coefficient, c('Intercept', 'CenteredLogOverallFreq', 'RelFreq', 'CenteredLogOverallFreq:RelFreq')))
+
+
+summary_table4 = summary_table4 %>%
+  mutate(percent_greater_zero = percent_greater_zero$`(sum(estimate > 0)/length(estimate)) * 100`) %>%
+  rename('% Samples > 0' = `percent_greater_zero`)
+
+rownames(summary_table4) = c('Intercept', 'OverallFreq', 'RelFreq', 'OverallFreq:RelFreq')
+
+knitr::kable(summary_table4, booktabs = T)
+
+
+```
+
+```{r, echo = F, out.width = '80%', fig.align = 'center', warning = F, message = F}
+#| label: fig-olmo1b
+#| fig-cap: "Visualization of our model predictions for Olmo 1B at relative frequency values of -0.25, 0, and 0.25"
+
+olmo1b = olmo1b_plot[[1]] %>%
+  ggplot(aes(x = CenteredLogOverallFreq, y = estimate__)) +
+  geom_smooth(aes(color = factor(RelFreq)), method = 'lm', formula = y ~ x, se = FALSE, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = factor(RelFreq)), alpha = 0.5) +
+  ylab('Log Cosine Similarity') +
+  xlab('Overall Frequency') +
+  scale_fill_discrete(name = "RelFreq") +
+  theme_bw()
+
+olmo1b
+```
+
+### Olmo-7B
+
+Our mixed-effects model is presented below in @tbl-olmo7bmodelresults and visualized in @fig-olmo7b. We found a meaningful main-effect of relative frequency ($\beta=-0.151$), suggesting that for binomials with a stronger preference for the alphabetical form, the holistic embeddings of the alphabetical form were less similar to the compositional form than the holistic embeddings of the nonalphabetical form were. We also found a meaningful interaction effect ($\beta=-0.017$), suggesting that for lower-frequency binomials there is not much of a difference between the alphabetical and nonalphabetical forms in terms of their semantic embeddings, however for more-frequent binomials that occur more in the alphabetical form, the holistic embeddings for the alphabetical form are *less* similar to the compositional form than the holistic embeddings for the nonalphabetical form.
+
+Our results suggest that Olmo-7B, similar to Olmo-1B and GPT2, is learning separate representations for high-frequency binomials, but may not be learning separate representations for low-frequency binomials.
+
+```{r, echo = F, message = F, results='asis'}
+#| label: tbl-olmo7bmodelresults
+#| tbl-cap: "Model results for our Bayesian mixed-effects model for Olmo 7B."
+
+
+percent_greater_zero = data.frame(fixef(olmo7b_m4, summary = F)) %>%
+  pivot_longer(cols = everything(), names_to = 'beta_coefficient', values_to = 'estimate') %>%
+  group_by(beta_coefficient) %>%
+  summarize((sum(estimate > 0) / length(estimate)) * 100)
+  
+
+summary_table4 = as.data.frame(fixef(olmo7b_m4)) %>%
+  mutate_if(is.numeric,
+            formatC,
+            format = 'f',
+            digits = 3) 
+
+percent_greater_zero = percent_greater_zero %>%
+  arrange(match(beta_coefficient, c('Intercept', 'CenteredLogOverallFreq', 'RelFreq', 'CenteredLogOverallFreq:RelFreq')))
+
+
+summary_table4 = summary_table4 %>%
+  mutate(percent_greater_zero = percent_greater_zero$`(sum(estimate > 0)/length(estimate)) * 100`) %>%
+  rename('% Samples > 0' = `percent_greater_zero`)
+
+rownames(summary_table4) = c('Intercept', 'OverallFreq', 'RelFreq', 'OverallFreq:RelFreq')
+
+knitr::kable(summary_table4, booktabs = T)
+
+
+```
+
+```{r, echo = F, out.width = '80%', fig.align = 'center', warning = F, message = F}
+#| label: fig-olmo7b
+#| fig-cap: "Visualization of our model predictions for Olmo 7B at relative frequency values of -0.25, 0, and 0.25"
+
+
+olmo7b = olmo7b_plot[[1]] %>%
+  ggplot(aes(x = CenteredLogOverallFreq, y = estimate__)) +
+  geom_smooth(aes(color = factor(RelFreq)), method = 'lm', formula = y ~ x, se = FALSE, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = factor(RelFreq)), alpha = 0.5) +
+  ylab('Log Cosine Similarity') +
+  xlab('Overall Frequency') +
+  scale_fill_discrete(name = "RelFreq") +
+  theme_bw()
+
+olmo7b
+```
+
+### Llama2-7B
+
+Our mixed-effects model is presented below in @tbl-llama2modelresults and visualized in @fig-llama2. While the credible interval for the interaction effect crosses zero, over 96% of the posterior samples were less than zero, suggesting that there is a meaningful interaction effect. The results suggest that for lower-frequency binomials there is not much of a difference between the alphabetical and nonalphabetical forms in terms of their semantic embeddings, however for more-frequent binomials that occur more in the alphabetical form, the holistic embeddings for the alphabetical form are *less* similar to the compositional form than the holistic embeddings for the nonalphabetical form.
+
+```{r, echo = F, message = F, results='asis'}
+#| label: tbl-llama2modelresults
+#| tbl-cap: "Model results for our Bayesian mixed-effects model for Llama2 7B."
+
+
+percent_greater_zero = data.frame(fixef(llama2_7b_m4, summary = F)) %>%
+  pivot_longer(cols = everything(), names_to = 'beta_coefficient', values_to = 'estimate') %>%
+  group_by(beta_coefficient) %>%
+  summarize((sum(estimate > 0) / length(estimate)) * 100)
+  
+
+summary_table4 = as.data.frame(fixef(llama2_7b_m4)) %>%
+  mutate_if(is.numeric,
+            formatC,
+            format = 'f',
+            digits = 3) 
+
+percent_greater_zero = percent_greater_zero %>%
+  arrange(match(beta_coefficient, c('Intercept', 'CenteredLogOverallFreq', 'RelFreq', 'CenteredLogOverallFreq:RelFreq')))
+
+
+summary_table4 = summary_table4 %>%
+  mutate(percent_greater_zero = percent_greater_zero$`(sum(estimate > 0)/length(estimate)) * 100`) %>%
+  rename('% Samples > 0' = `percent_greater_zero`)
+
+rownames(summary_table4) = c('Intercept', 'OverallFreq', 'RelFreq', 'OverallFreq:RelFreq')
+
+knitr::kable(summary_table4, booktabs = T)
+
+
+```
+
+```{r, echo = F, out.width = '80%', fig.align = 'center', warning = F, message = F}
+#| label: fig-llama2
+#| fig-cap: "Visualization of our model predictions for Llama2 7B at relative frequency values of -0.25, 0, and 0.25"
+
+
+
+llama2 = llama2_plot[[1]] %>%
+  ggplot(aes(x = CenteredLogOverallFreq, y = estimate__)) +
+  geom_smooth(aes(color = factor(RelFreq)), method = 'lm', formula = y ~ x, se = FALSE, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = factor(RelFreq)), alpha = 0.5) +
+  ylab('Log Cosine Similarity') +
+  xlab('Overall Frequency') +
+  scale_fill_discrete(name = "RelFreq") +
+  theme_bw()
+
+llama2
+```
+
+### 
