@@ -78,6 +78,8 @@ llama2_plot = conditional_effects(llama2_7b_m4, plot = F, effects = "CenteredLog
 
 <!--# What if we frame this as: Large Language Models make novel predictions in humans. Maybe we can write a larger opinion piece on the role of LLMs in linguistics? Can talk about the history of computational models, such as the development of the Rescorla-Wagner learning theory model, etc -->
 
+## Introduction
+
 ## Methods
 
 ### Dataset
@@ -390,3 +392,5 @@ llama2
 ```
 
 ### 
+
+## Discussion
