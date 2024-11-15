@@ -99,6 +99,7 @@ def get_compositional_semantic_embeddings(model, tokenizer, multi_word_phrase): 
 
 
 def main(model_name, sentences, word1, word2):
+    print(f"Processing {model_name} now.")
     model, tokenizer = load_model(model_name)
     n_batches = len(sentences) / 1 #
     model_name_for_saving = model_name.replace("/", "_")
@@ -226,11 +227,12 @@ def main(model_name, sentences, word1, word2):
 
     
     cosine_diffs_comp_df.to_csv(f"../Data/{model_name_for_saving}_compositional_cosine_diffs.csv")
+    print(f"Finished Processing {model_name} now.")
 
 
-main('gpt2', sentences, word1, word2)
+#main('gpt2', sentences, word1, word2)
 #main('gpt2-xl', sentences, word1, word2)
-#main('meta-llama/Llama-2-7b-hf', sentences, word1, word2)
+main('meta-llama/Llama-2-7b-hf', sentences, word1, word2)
 #main('allenai/OLMo-1B', sentences, word1, word2) 
 #main('allenai/OLMo-7B', sentences, word1, word2)
 
