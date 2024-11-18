@@ -49,6 +49,8 @@ data = data %>%
 ```
 
 ```{r}
+
+
 alpha_sentences = data %>%
   select(-`Sentence (WordB and WordA)`) %>%
   mutate(alpha_order = 1)  %>%
