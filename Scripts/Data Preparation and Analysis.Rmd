@@ -2987,6 +2987,13 @@ Plot of actual data
 aggregate_data$checkpoint = factor(aggregate_data$checkpoint, levels = c('20000', '30000', '40000', '50000', '60000', '70000', '80000', '90000', '95000', '96000', '97000', '98000', '99000', '100000', '425000', 'main'))
 aggregate_data$layer = factor(aggregate_data$layer)
 
+write_csv(aggregate_data, '../Data/aggregate_data.csv')
+
+aggregate_data = aggregate_data %>%
+  filter(checkpoint %in% c('20000', '40000', '60000', '80000', '100000', 'main'))
+
+
+
 aggregate_data = aggregate_data %>%
   mutate(RelFreq_group = ifelse(RelFreq < 0, "nonalpha", "alpha"))
 
