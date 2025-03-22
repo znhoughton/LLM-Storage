@@ -81,45 +81,49 @@ llama2_plot = conditional_effects(llama2_7b_m4, plot = F, effects = "CenteredLog
 
 # Introduction
 
-In the last few years large language models have surged in popularity and have remained in the center of both the media and the recent research. With their surge in popularity has come many debates about to what extent they constitute as effective models of human language [e.g., @benderDangersStochasticParrots2021; @piantadosiMeaningReferenceLarge2022; @piantadosiChapterModernLanguage]. These questions have stemmed from clear differences in terms of both the training that the models receive as well as the performance of these models on language tasks. For example, common criticisms include their insanely large training size (sometimes being trained on upwards of 15 billion tokens), the potentially unrealistic nature of their tokenization (e.g., Chat GPT tokenizes kite as *k*, *ite*), and they commonly fail tasks that are trivial to humans (e.g., counting the number of *r*'s in *strawberry*).
+In the last few years large language models have surged in popularity and have remained in the center of both the media and the recent research. With their surge in popularity has come many debates about to what extent they constitute as effective models of human language [e.g., @benderDangersStochasticParrots2021; @piantadosiMeaningReferenceLarge2022; @piantadosiChapterModernLanguage]. These questions have stemmed from clear differences in terms of both the training that the models receive as well as the performance of these models on language processing tasks. For example, common criticisms include their insanely large training size (sometimes being trained on upwards of 15 billion tokens), the potentially unrealistic nature of their tokenization (e.g., Chat GPT tokenizes kite as *k*, *ite*[^1]), and their poor performance on tasks that are trivial to humans (e.g., counting the number of *r*'s in *strawberry*[^2]).
 
-Many of these debates are centered around the extend to which large language models are actually learning something abstract from the data and to what extent they are simply regurgitating their training data. Research has demonstrated mixed results with respect to the extent that they are copying from their input. For example, @haley2020bert examined whether BERT models are able to reliably determine the plurality of novel words. Specifically, they tasked BERT with choosing the proper plural form for a novel noun in five different languages. They also included a condition that contained a prime that native speakers could use to reliably determine the correct plural form. For example, in English the prime sentence was: "This is a \_\_\_\_\_", with the singular form of the noun replacing the blank space. @haley2020bert argued that it is theoretically possible for BERT to learn to use the prime to reliably determine the plural noun using self-attention. While BERT was able to perform better-than-chance on novel nouns, cross-linguistically it failed to use information about the prime sentence to achieve better performance.
+[^1]: <https://tiktokenizer.vercel.app/>
 
-In contrast, @lasri2022subject demonstrated that BERT can generalize well to novel subject-verb pairs. Specifically they tested BERT's on a mix of novel sentences and semantically incoherent (yet syntactically sensible) sentences such as *colorless green ideas sleep furiously*. They masked the verb and examined how humans and BERT did in the semantically incoherent sentences and novel (semantically coherent) sentences. They found that both BERT and humans perform more poorly on semantically incoherent sentences, but BERT struggles more than humans. Similarly, @mccoy2023much examined to what extent GPT-2 was simply copying its training data as opposed to producing novel utterances. They found that while GPT-2 copies extensively, it also produces both novel words as well as novel syntactic structures.
+[^2]: <https://community.openai.com/t/incorrect-count-of-r-characters-in-the-word-strawberry/829618>
 
-Given the evidence that large language models are both learning abstract knowledge as well as copying extensively from their training data, it's unclear in what situations they are leveraging their stored knowledge versus leveraging their more abstract knowledge. Thus the present study examines whether large language models are simply memorizing items or learning similar representations for words that contain the same tokens. Specifically, we use binomials (N *and* N compounds) as a test case since binomials can express the same (or very similar) meaning regardless of the ordering of the nouns. For example, the meaning of *cat and dog* is the same as *dog and cat*.
+Many of these debates are centered around the extend to which large language models are actually learning something abstract from the data and to what extent they are simply regurgitating their training data. Research has demonstrated mixed results with respect to the extent that they are copying from their input. For example, @haley2020bert demonstrated that many BERT models are not able to reliably determine the correct plurality of novel words. Similarly, @liAreNeuralNetworks2021 demonstrated that BERT tends to rely on memorization from its training data when producing the correct tense of novel words.
+
+In contrast, recent research has demonstrated BERT's ability to generalize well to novel subject-verb pairs [@lasri2022subject; @liAssessingCapacityTransformer2023] and to use abstract knowledge to predict object-past participle agreements in French [@liAssessingCapacityTransformer2023]. Similarly, @mccoy2023much demonstrated that while GPT-2 copies extensively, it also produces both novel words as well as novel syntactic structures.
+
+Given the evidence that large language models show evidence of both learning abstract knowledge as well as copying extensively from their training data, it's unclear in what situations they are leveraging their stored knowledge versus leveraging their more abstract knowledge. Thus the present study examines whether large language models are simply memorizing items or learning similar representations for words that contain the same tokens. Specifically, we use binomials (N *and* N compounds) as a test case since binomials can express the same (or very similar) meaning regardless of the ordering of the nouns.
 
 ## Binomials as a Test Case
 
-Binomials provide a compelling test case for these questions because there is a lot of psycholinguistics research on how humans learn and process them [e.g., @benorChickenEggProbabilistic2006; @siyanova-chanturiaSeeingPhraseTime2011; @morganAbstractKnowledgeDirect2016; @morganModelingIdiosyncraticPreferences2015; @morganFrequencydependentRegularizationIterated2016a]. For example, @benorChickenEggProbabilistic2006 demonstrated that a variety of different factors affect binomial ordering preferences, including phonological constraints such as stress and semantic constraints such as which term is more culturally significant. Additionally, @morganAbstractKnowledgeDirect2016 demonstrated that human ordering preferences for binomials are affected both by the relative frequency of the binomial (i.e., the proportion of occurrences in alphabetical ordering, e.g. *cat and dog* vs nonalphabetical ordering, e.g. *dog and cat*) as well as abstract ordering preferences such as a preference for short words before long words.
+Binomials are conjoined nouns (e.g., *bread and butter*) and provide a good test case because while the ordering of the nouns doesn't affect the meaning much (*cats and dogs* vs *dogs and cats*), humans have varying preferences about the ordering of the binomials [@benorChickenEggProbabilistic2006; @siyanova-chanturiaSeeingPhraseTime2011; @morganAbstractKnowledgeDirect2016; @morganModelingIdiosyncraticPreferences2015; @morganFrequencydependentRegularizationIterated2016a; @morganProductiveKnowledgeItemspecific2024]. For example, @benorChickenEggProbabilistic2006 demonstrated that a variety of different factors affect binomial ordering preferences, including phonological constraints such as stress and semantic constraints such as which term is more culturally significant. Additionally, @morganAbstractKnowledgeDirect2016 demonstrated that human ordering preferences for binomials are affected both by the relative frequency of the binomial (i.e., which ordering is more frequent) as well as abstract ordering preferences such as a preference for short words before long words.
 
-By leveraging the fact that binomials can have two different orderings with the same meaning, we can thus examine whether large language models learn separate representations for them. Further, we can examine how their representations change as a function of overall frequency (the frequency of the binomial regardless of order) and relative frequency. Specifically, a large language model may conceivably learn separate representations for binomials with a high overall-frequency (since it has had a lot of experience with the binomial) but may not learn separate representations for low-frequency binomials (since it has not had much experience with the binomial).
+By leveraging the fact that binomials can have two different orderings with the same meaning, we can examine whether large language models learn separate representations for them. Further, we can examine how their representations change as a function of overall frequency of the binomial (the frequency of the binomial regardless of order) and relative frequency. Specifically, a large language model may conceivably learn separate representations for binomials with a high overall-frequency (since it has had a lot of experience with the binomial) but may not learn separate representations for low-frequency binomials (since it has not had much experience with the binomial).
 
 ## Present Study
 
-Since humans rely more on abstract knowledge for lower frequency items and rely more on their experience with the binomial for high-frequency binomials, a natural consequence of this is that they have learned separate representations for high-frequency binomials. If large language models are doing something similar, than they may also learn separate representations for high-frequency binomials but not for lower-frequency binomials.
+Since humans rely more on abstract knowledge for lower frequency items and rely more on their experience with the binomial for high-frequency binomials [@morganProductiveKnowledgeItemspecific2024], a natural consequence of this is that they have learned separate representations for high-frequency binomials. If large language models are doing something similar, than they may also learn separate representations for high-frequency binomials but not for lower-frequency binomials.
 
-The present study addresses this question by examining the semantic representations of binomials varying in relative frequency and overall frequency. We examine the embeddings for both ordering of binomials in a sentence context, as well as examine the embeddings for a compositional form of the binomial (which we will elaborate on in the methods section). We hypothesize that the representations of the more frequent form (higher relative frequency form) for binomials with a high overall frequency may diverge more from the compositional representation than the less frequent ordering (lower relative frequency form) does for the same binomial. That is, for high-frequency binomials, the representation for the more frequent ordering may be more different from the compositional representation than the less-frequent ordering. For lower-frequency binomials, since large language models may not be storing the entire binomial, they may not have different representations for the different orderings of the same form.
+The present study addresses this question by examining the semantic representations of binomials varying in relative frequency and overall frequency. We examine the embeddings for both ordering of binomials in a sentence context, as well as examine the embeddings for a compositional form of the binomial (which we will elaborate on in the methods section). We hypothesize that the representations of the more frequent form (higher relative frequency form) for binomials with a high overall frequency may diverge more from the compositional representation than the less frequent ordering (lower relative frequency form) does for the same binomial. That is, for high-frequency binomials, the representation for the more frequent ordering may be more different from the compositional representation than the less-frequent ordering. For lower-frequency binomials, large language models may not learn different representations for the different orderings of the same form, regardless of the relative frequency.
 
-In Experiment 1 we examine the representations of different binomials across different large language models and in Experiment 2 we examine the timecourse of these representations across each hidden layer for OLMo's 1B model [@groeneveldOLMoAcceleratingScience2024].
+In Experiment 1 we examine the representations of different binomials across different large language models and in Experiment 2 we examine the timecourse of these representations across each hidden layers for OLMo's 1B model [@groeneveldOLMoAcceleratingScience2024].
 
 # Experiment 1
 
-In Experiment 1 we examine the representations of binomials for GPT-2, GPT-2 XL [@radfordLanguageModelsAre2019], OLMo-1B, OLMo-7B [@groeneveldOLMoAcceleratingScience2024], and Llama2-7B [@touvronLlama2Open2023]. We examine the representations for different binomials in different sentence contexts as well as the compositional representations of those same binomials. We explain these metrics in detail below.
+In Experiment 1 we examine the representations of binomials for GPT-2, GPT-2 XL [@radfordLanguageModelsAre2019], OLMo-1B, OLMo-7B [@groeneveldOLMoAcceleratingScience2024], and Llama2-7B [@touvronLlama2Open2023]. We examine the representations for different binomials in sentence contexts as well as the compositional representations of those same binomials. We explain these metrics in detail below.
 
 ## Methods
 
 ### Dataset
 
-Our dataset consists of 784 sentences containing binomials. The sentences have also been annotated for both relative frequency and overall frequency. Relative frequency is operationalized as the proportion of occurrences in alphabetical order. Overall frequency is operationalized as the count of *A and B* plus the count of *B and A*. Counts were obtained using the Google *n-*grams corpus [@linSyntacticAnnotationsGoogle2012].
+Our dataset consists of 784 sentences containing binomials. The sentences have been annotated for both relative frequency and overall frequency. Relative frequency is operationalized as the proportion of occurrences in alphabetical order (a neutral reference order) to occurrences in nonalphabetical order. Overall frequency is operationalized as the count of *A and B* plus the count of *B and A*. Counts were obtained using the Google *n-*grams corpus [@linSyntacticAnnotationsGoogle2012].
 
 ### Semantic Embeddings
 
-In order to examine the semantic compositionality of binomials, we examined the semantic embeddings of five different large language models: GPT-2, GPT-2 XL [@radford2019], Llama-2 7B [@touvron2023], OLMo 1B and OLMo 7B [@OLMo2024].[^1]
+In order to examine the semantic compositionality of binomials, we examined the semantic embeddings of five different large language models: GPT-2, GPT-2 XL [@radfordLanguageModelsAre2019], Llama-2 7B [@touvronLlama2Open2023], OLMo 1B and OLMo 7B [@groeneveldOLMoAcceleratingScience2024].[^3]
 
-[^1]: All of our code can be found publicly available at \url{https://github.com/znhoughton/LLM-Storage}.
+[^3]: All of our code can be found publicly available at \url{https://github.com/znhoughton/LLM-Storage}.
 
-For each LLM we examined the semantic embeddings of the binomials in a sentence context. We accomplished this by passing the sentence through each large language model and extracting the second-to-last hidden layer. Since LLMs generate an embedding for each word, we computed the mean of these embeddings to represent the semantic embedding of the entire binomial in a sentence context (hereafter referred to as holistic embeddings). Next, we obtained the embedding for each word in the binomial individually, outside of a sentence context. We then computed the mean of these embeddings to represent the semantic embedding of the compositional form of the binomial (hereafter referred to as the compositional embeddings).
+For each LLM we examined the semantic embeddings of the binomials in a sentence context. We accomplished this by passing the sentence through each large language model and extracting the second-to-last hidden layer for each of the words in the binomial. Since LLMs generate an embedding for each word, we computed the mean of these embeddings to represent the semantic embedding of the entire binomial in a sentence context (hereafter referred to as holistic embeddings). Next, we obtained the embedding for each word in the binomial individually, outside of a sentence context. We then computed the mean of these embeddings to represent the semantic embedding of the compositional form of the binomial (hereafter referred to as the compositional embeddings).
 
 We then measured the cosine similarity between the holistic embeddings and the compositional embeddings for the alphabetical and nonalphabetical forms of each binomial. This is presented mathematically in @eq-cosalpha and @eq-cosnonalpha, where $cos_\alpha$ is the cosine similarity between the holistic embeddings of the alphabetical form of the binomial and the compositional form, $cos_{\neg\alpha}$ is the cosine similarity between the embeddings of the nonalphabetical form of the binomial and the compositional form, $h_\alpha$ and $h_{\neg\alpha}$ are the embeddings of the holistic form of the binomial in alphabetical and nonalphabetical forms respectively (in a sentence context), and $c$ is the embeddings of the compositional form. Since $c$ represents the mean of the embeddings for each word in the binomial out of context, order does not matter. Cosine similarity ranges from -1 to 1 where 1 indicates two extremely similar vectors and -1 indicates two extremely dissimilar vectors.
 
@@ -139,7 +143,7 @@ $$ {#eq-cossim}
 
 ### Analysis
 
-We used a Bayesian mixed-effects model to examine how the semantic similarity between the holistic embeddings and the compositional embeddings tradeoff as a function of relative and overall frequency. Specifically, we modeled $LogCosSim$ as a function of overall frequency, which was centered and logged, $RelFreq$ which ranged from -0.5 to 0.5 (with 0.5 representing a binomial that appears only in the alphabetical form, and -0.5 representing a binomial that appears only in the nonalphabetical form), and their interaction. Our model is presented below in @eq-m4.
+We used a Bayesian mixed-effects model to examine how the semantic similarity between the holistic embeddings and the compositional embeddings trade off as a function of relative and overall frequency. Specifically, we modeled $LogCosSim$ as a function of overall frequency, which was centered and logged, $RelFreq$ which ranged from -0.5 to 0.5 (with 0.5 representing a binomial that appears only in the alphabetical form, and -0.5 representing a binomial that appears only in the nonalphabetical form), and their interaction. Our model is presented below in @eq-m4.
 
 $$
 LogCosSim \sim OverallFreq*RelFreq
@@ -147,7 +151,7 @@ $$ {#eq-m4}
 
 ## Results
 
-The results of our models for each LLM are presented below. For all of our models, following [@houghton2024] we report the percentage of posterior samples greater than zero. Since we are using Bayesian mixed-effects models, we are not forced into a binary of significant or non-significant. By reporting the percentage of posterior samples greater than zero, we can present a more nuanced picture of our results.
+The results of our models for each LLM are presented below. For all of our models, following [@houghtonTaskdependentConsequencesDisfluency2024] we report the percentage of posterior samples greater than zero. Since we are using Bayesian mixed-effects models, we are not forced into a binary of significant or non-significant. By reporting the percentage of posterior samples greater than zero, we can present a more nuanced picture of our results.
 
 ### GPT-2
 
@@ -422,7 +426,7 @@ llama2
 
 ## Discussion
 
-Overall our results suggest that for higher frequency binomials, the semantic representation for the more frequent form of the binomial diverges more from the representation of the compositional form. This suggests that large language models tend to learn separate representations for high-frequency binomials, similar to what has been argued that humans do [@morganAbstractKnowledgeDirect2016]. However, it's unclear on what timescale this emerges and at what layer this result holds for. For example, does this difference emerge early in training or does it take a lot of training for these different representations to emerge? Further, since different layers have been proposed to correspond to different functions [e.g., earlier layers may represent more phonological knowledge while later layers may represent more semantic knowledge; @tenney2019bert], it is possible that these results may be vary across different layers. In Experiment 2 we examine both of these questions.
+Overall our results suggest that for higher frequency binomials in most large language models, the semantic representation for the more frequent form of the binomial diverges more from the representation of the compositional form. This suggests that large language models tend to learn different representations for high-frequency binomials, similar to what has been argued that humans do [@morganAbstractKnowledgeDirect2016]. However, it's unclear on what timescale this emerges and at what hidden layers this result holds for. For example, does this difference emerge early in training or does it take a large amount of training for these different representations to emerge? Further, since different layers have been proposed to correspond to different functions [e.g., earlier layers may represent more phonological knowledge while later layers may represent more semantic knowledge; @tenney2019bert], it is possible that these results may be vary across different layers. In Experiment 2 we examine both of these questions.
 
 # Experiment 2
 
@@ -438,7 +442,11 @@ For the present study, we examine the embeddings for our sentences from Experime
 
 A visualization of the embeddings at different layers and different checkpoints is included below:
 
-```{r}
+```{r echo = F, fig.width = 16, fig.height = 12, fig.align = 'center', fig.fullwidth = TRUE, warning = FALSE, message = FALSE}
+
+#| column: screen
+#| out-width: 100%
+#| fig-format: svg
 
 aggregate_data = read_csv('../Data/aggregate_data.csv')
 aggregate_data = aggregate_data %>%
@@ -448,13 +456,12 @@ aggregate_data$checkpoint = factor(aggregate_data$checkpoint, levels = c('20000'
 
 
 aggregate_data = aggregate_data %>%
-  mutate(RelFreq_group = ifelse(RelFreq < 0, "nonalpha", "alpha"))
-
+  mutate(RelFreq = ifelse(RelFreq < 0, "nonalpha", "alpha"))
 
 aggregate_data_plot = ggplot(aggregate_data, aes(
      x = CenteredLogOverallFreq,
      y = log_odds_cosine,
-     color = RelFreq_group
+     color = RelFreq
    )) +
      geom_point(alpha = 0.2) +
      geom_smooth(method = 'lm', formula = y ~ x, se = TRUE, linewidth = 1) +
@@ -463,30 +470,46 @@ aggregate_data_plot = ggplot(aggregate_data, aes(
      facet_grid(checkpoint ~ layer) +
      theme_bw() +
      scale_color_manual(
-       values = c("nonalpha" = "turquoise3", "alpha" = "deeppink2"),
-       name = "RelFreq Group"
+       values = c("nonalpha" = "turquoise3", "alpha" = "deeppink2"),  # Ensure matching labels
+       name = "RelFreq"
      ) +
-     coord_cartesian(ylim = c(-0.5, 0.5))
+     scale_x_continuous(breaks = c(-5, 5)) +  # Only show -5 and 5 as x-axis labels
+     coord_cartesian(ylim = c(-0.5, 0.5)) +
+     theme(
+       axis.title = element_text(size = 20),
+       axis.text = element_text(size = 16),
+       legend.title = element_text(size = 18),
+       legend.text = element_text(size = 16),
+       strip.text = element_text(size = 18)
+     )
 
 aggregate_data_plot
+
+
 ```
 
-There's a lot to unpack in the above results, but there are two trends that are important to point out. The first one is that ...
+There are two trends that are notable. First, the earlier layers tend to display an opposite pattern from the later layers, with the more frequent embeddings being more similar to the compositional form. Second, the holistic representation of the frequent ordering diverges from the compositional representation at about the 80000th step (336B tokens). We will discuss the implications of both of these in the discussion section.
 
 ## Discussion
 
 Our results demonstrate that from early on in the training the frequency difference is reflected in the embeddings in the early layers. Interestingly, however, this is not reflected in the representation at later layers. Instead, the differences in representations emerge in later layers over time.
 
+These results are consistent with the general idea that later layers encode more semantic information, since the pattern of the more frequent embeddings diverging is seen in the later layers, while the earlier layers show the opposite pattern.
+
+Additionally, the fact that the pattern emerges rather slowly (taking several hundred billion tokens of training) suggests that the model must experience the binomial quite a lot in order to learn a separate representation for it. This suggests that the model isn't simply learning a separate representation because the binomial occurs in different semantic contexts (because if that were the case we would see the pattern emerge quite early on), but because it occurs frequently. This is in line with usage-based theories that have argued that holistic representations in humans emerge as a function of usage [e.g., @bybeePhonologyLanguageUse2003].
+
 # Conclusion
 
-The present study demonstrates that the semantic embeddings for the more frequent ordering of a given binomial becomes less similar to the compositional embeddings as a function of the overall frequency of the binomial. That is, the embeddings of the more frequent ordering of a high-frequency binomial are less similar to the compositional embeddings than the less frequent ordering's embedidngs are. Another way to frame these results is that the same form can give rise to quantitatively (but systematically) different representations in large language models and this is dependent on the overall frequency of that form (in either order).
+The present study demonstrates that the semantic embeddings for the more frequent ordering of a given binomial become less similar to the compositional embeddings as a function of the overall frequency of the binomial. That is, the embeddings of the more frequent ordering of a high-frequency binomial (e.g., *bread and butter*) are less similar to the compositional embeddings than the less frequent ordering's embedidngs (e.g., *butter and bread*) are. Another way to frame these results is that the same form (i.e., the same words) can give rise to quantitatively (but systematically) different representations in large language models and this varies depending on the overall frequency of that form (in either order).
 
 It may not seem particularly surprising that the more frequent form diverges in semantic representation from the compositional form. After all, by definition a large language model has more experience with the more frequent form, which means the embeddings are being updated more often for the more frequent ordering. This in turn creates more opportunities for those embeddings to diverge from the compositional embeddings. However, what is interesting is how this effect emerges over time: early on in the training, the embeddings for the more frequent form are more similar to the compositional form across both earlier and later layers. Further, as training continues this stays the case for early layers, but undergoes a reversal in later layers.
 
-One possible explanation for our results is that the more frequent form may be occurring in particularly different contexts from the compositional and less frequent forms (e.g., perhaps they are more idiomatic, such as *black and white*[^2]). However, if this were the case then we would expect to see the embeddings for the frequent form to diverge from the embeddings of the compositional form quite early. Instead, however, we actually see the opposite early in the training: the embeddings for the more frequent form are *more* similar to those of the compositional form and it takes time for these embeddings to diverge.
+One possible explanation for our results is that the more frequent form may be occurring in particularly different contexts from the compositional and less frequent forms (e.g., perhaps they are more idiomatic, such as *black and white*[^4]). However, if this were the case then we would expect to see the embeddings for the frequent form to diverge from the embeddings of the compositional form quite early in training. Instead, however, we actually see the opposite early in the training: the embeddings for the more frequent form are *more* similar to those of the compositional form and it takes time for these embeddings to diverge.
 
-[^2]: Although all of our sentences were sentences that encouraged a compositional reading of our binomials, and very few of our binomials had a particularly idiomatic meaning to begin with.
+[^4]: Although all of our sentences were sentences that encouraged a compositional reading of our binomials, and very few of our binomials had a particularly idiomatic meaning to begin with.
 
 Another possibility is that early in training for high-frequency binomials, the large language model's experience with the individual words may largely overlap with the large language model's experience with the frequent form of the binomial (e.g., the model's experience with contexts containing the binomial *bread and butter* are also contributing to the large language model's experience with the individual words). Thus, initially these embeddings may be similar until the large language model experiences enough data to learn different representations. As the model experiences more sentence contexts with the binomial, the representation for the more frequent ordering has more opportunities to diverge from the representation of the individual words. This process explains why the same form can give rise to different representations.
 
-Finally, our results can also be considered predictions for how humans may store binomials. Future work would do well to examine whether it is also the case that the semantic representations for the more frequent ordering of high-frequency binomials diverge more from the compositional representations in humans. Our results also make predictions about the timescale of learning: for young children, the pattern of results may actually be the opposite from adults, since at earlier checkpoints in our model the embeddings for the more frequent ordering of high-frequency binomials were more similar to the compositional embeddings.
+Finally, our results can also be considered predictions for how humans may learn representations. Future work would do well to examine whether it is also the case that the semantic representations for the more frequent ordering of high-frequency binomials diverge more from the compositional representations in humans. Our results also make predictions about the timescale of learning: for young children, the pattern of results may actually be the opposite from adults, since at earlier checkpoints in our model the embeddings for the more frequent ordering of high-frequency binomials were more similar to the compositional embeddings.
+
+\clearpage
