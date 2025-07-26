@@ -30,8 +30,6 @@ word2 = binomial_data$Word2
 
 ## Semantic Representations
 
-### Olmo 7b
-
 ```{python}
 
 import torch
@@ -43,7 +41,7 @@ from hf_olmo import OLMoForCausalLM, OLMoTokenizerFast
 #device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 device = 'cpu' #can't fit olmo onto my gpu memory unfortunately
 #model_name_or_path = "allenai/OLMo-7B" #let's replicate with Olmo-1b, llama-3 , and 
-model_name_or_path = "gpt2-xl"
+#model_name_or_path = "gpt2-xl"
 model_basename = "model"
 
 #use_triton = False
