@@ -107,7 +107,7 @@ $$
 ### Olmo-7b
 
 ```{r}
-cosine_data = read_csv('../Data/allenai_OLMo-1B_compositional_cosine_diffs.csv') %>%
+cosine_data = read_csv('../Data/allenai_OLMo-7B_compositional_cosine_diffs.csv') %>%
   left_join(all_sentences, by = c('binom' = 'Binomial'))
 
 cosine_data = cosine_data %>%
@@ -219,11 +219,12 @@ cosine_data_m4 = cosine_data %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) %>%
   ungroup() %>%
-  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq)) %>%
+  mutate(scaled_odds = scale(log_odds_cosine)) 
 
 options(contrasts = c("contr.sum","contr.sum"))
 
-m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+m4 = brm(scaled_odds ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m4,
          family = gaussian(),
          warmup = 2000,
@@ -359,11 +360,12 @@ cosine_data_m4 = cosine_data %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) %>%
   ungroup() %>%
-  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq)) %>%
+  mutate(scaled_odds = scale(log_odds_cosine)) 
 
 options(contrasts = c("contr.sum","contr.sum"))
 
-m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+m4 = brm(scaled_odds ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m4,
          family = gaussian(),
          warmup = 2000,
@@ -372,6 +374,7 @@ m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
          chains = 4,
          #init = 0.1,
          file = '../Data/model4_gpt2')
+
 
 fixef(m4)
 
@@ -497,11 +500,12 @@ cosine_data_m4 = cosine_data %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) %>%
   ungroup() %>%
-  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq)) %>%
+  mutate(scaled_odds = scale(log_odds_cosine)) 
 
 options(contrasts = c("contr.sum","contr.sum"))
 
-m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+m4 = brm(scaled_odds ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m4,
          family = gaussian(),
          warmup = 2000,
@@ -643,11 +647,12 @@ cosine_data_m4 = cosine_data %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) %>%
   ungroup() %>%
-  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq)) %>%
+  mutate(scaled_odds = scale(log_odds_cosine))
 
 options(contrasts = c("contr.sum","contr.sum"))
 
-m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+m4 = brm(scaled_odds ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m4,
          family = gaussian(),
          warmup = 2000,
@@ -684,7 +689,7 @@ llama2_plot = conditional_effects(m4, plot = F, effects = "CenteredLogOverallFre
 ### Olmo 1b
 
 ```{r}
-cosine_data = read_csv('../Data/allenai_OLMo-1B_compositional_cosine_diffs.csv') %>%
+cosine_data = read_csv('../Data/allenai_OLMo-1B_cosine_diffs.csv') %>%
   left_join(all_sentences, by = c('binom' = 'Binomial'))
 
 cosine_data = cosine_data %>%
@@ -781,11 +786,12 @@ cosine_data_m4 = cosine_data %>%
   mutate(LogOverallFreq = log(OverallFreq+1)) %>%
   top_n(1, abs(log_odds_cosine)) %>%
   ungroup() %>%
-  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq))
+  mutate(CenteredLogOverallFreq = LogOverallFreq - mean(LogOverallFreq)) %>%
+  mutate(scaled_odds = scale(log_odds_cosine)) 
 
 options(contrasts = c("contr.sum","contr.sum"))
 
-m4 = brm(log_odds_cosine ~ CenteredLogOverallFreq * RelFreq,
+m4 = brm(scaled_odds ~ CenteredLogOverallFreq * RelFreq,
          data = cosine_data_m4,
          family = gaussian(),
          warmup = 2000,
